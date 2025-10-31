@@ -1,0 +1,112 @@
+import React, { useState, useEffect } from 'react';
+import { Transaction, TransactionType } from '../types';
+import { CATEGORIES } from '../constants';
+
+interface AddEditTransactionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (transaction: Omit<Transaction, 'id' | 'createdAt'> | Transaction) => void;
+    transactionToEdit?: Transaction | null;
+}
+
+export const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = ({
+    isOpen,
+    onClose,
+    onSave,
+    transactionToEdit,
+}) => {
+    const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
+    const [category, setCategory] = useState<string>('');
+    const [amount, setAmount] = useState<string>('');
+    const [note, setNote] = useState<string>('');
+    const [categories, setCategories] = useState<string[]>(CATEGORIES.expense);
+
+    useEffect(() => {
+        if (transactionToEdit) {
+            setType(transactionToEdit.type);
+            setCategory(transactionToEdit.category);
+            setAmount(String(transactionToEdit.amount));
+            setNote(transactionToEdit.note);
+        } else {
+            // Reset form for new transaction
+            setType(TransactionType.EXPENSE);
+            setCategory(CATEGORIES.expense[0]);
+            setAmount('');
+            setNote('');
+        }
+    }, [transactionToEdit, isOpen]);
+
+    useEffect(() => {
+        const newCategories = CATEGORIES[type];
+        setCategories(newCategories);
+        if (!newCategories.includes(category)) {
+            setCategory(newCategories[0]);
+        }
+    }, [type, category]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const numericAmount = parseFloat(amount);
+        if (!category || isNaN(numericAmount) || numericAmount <= 0) {
+            // Basic validation
+            alert('กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง');
+            return;
+        }
+
+        const newTransaction = {
+            type,
+            category,
+            amount: numericAmount,
+            note,
+        };
+        
+        if (transactionToEdit) {
+            onSave({ ...newTransaction, id: transactionToEdit.id, createdAt: transactionToEdit.createdAt });
+        } else {
+            onSave(newTransaction);
+        }
+        onClose();
+    };
+    
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">
+                    {transactionToEdit ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}
+                </h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <div className="flex rounded-md shadow-sm">
+                            <button type="button" onClick={() => setType(TransactionType.INCOME)} className={`px-4 py-2 w-1/2 rounded-l-md font-semibold focus:outline-none transition-colors ${type === TransactionType.INCOME ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300'}`}>รายรับ</button>
+                            <button type="button" onClick={() => setType(TransactionType.EXPENSE)} className={`px-4 py-2 w-1/2 rounded-r-md font-semibold focus:outline-none transition-colors ${type === TransactionType.EXPENSE ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300'}`}>รายจ่าย</button>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หมวดหมู่</label>
+                        <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="mb-4">
+                        <label htmlFor="amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">จำนวนเงิน (บาท)</label>
+                        <input type="number" id="amount" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                    </div>
+
+                    <div className="mb-6">
+                        <label htmlFor="note" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">บันทึก (ไม่บังคับ)</label>
+                        <input type="text" id="note" value={note} onChange={e => setNote(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-md font-semibold text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">ยกเลิก</button>
+                        <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-blue-600 hover:bg-blue-700">บันทึก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
