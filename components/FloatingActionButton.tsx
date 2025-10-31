@@ -9,10 +9,10 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onCl
     return (
         <button
             onClick={onClick}
-            className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-110"
-            aria-label="เพิ่มรายการใหม่"
+            className="fixed bottom-6 right-6 z-40 w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            aria-label="Add transaction"
         >
-            <PlusIcon className="w-6 h-6" />
+            <PlusIcon className="w-8 h-8" />
         </button>
     );
 };

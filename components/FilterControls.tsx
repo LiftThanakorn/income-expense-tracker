@@ -7,7 +7,7 @@ interface FilterControlsProps {
 }
 
 export const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange, filter }) => {
-    const baseClasses = "px-4 py-2 font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors";
+    const baseClasses = "px-4 py-2 font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors";
     const inactiveClasses = "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600";
     
     return (

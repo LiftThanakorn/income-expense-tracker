@@ -1,5 +1,3 @@
-
-
 // FIX: Corrected the import for React and hooks to resolve multiple compilation errors.
 import React, { useState, useEffect } from 'react';
 import { Transaction } from '../types';
@@ -27,7 +25,7 @@ const LoadingSpinner: React.FC = () => (
 const IncomeExpenseBar: React.FC<{ income: number, expense: number }> = ({ income, expense }) => {
     const total = income + expense;
     if (total === 0) {
-        return <div className="text-center text-gray-500">ไม่มีข้อมูลสำหรับแสดงกราฟ</div>;
+        return <div className="text-center text-gray-500 dark:text-gray-400">ไม่มีข้อมูลสำหรับแสดงกราฟ</div>;
     }
 
     const incomePercent = (income / total) * 100;
@@ -35,7 +33,7 @@ const IncomeExpenseBar: React.FC<{ income: number, expense: number }> = ({ incom
 
     return (
         <div className="w-full">
-            <div className="flex w-full h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600">
+            <div className="flex w-full h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
                 <div 
                     className="bg-green-500 transition-all duration-500" 
                     style={{ width: `${incomePercent}%` }}
@@ -47,7 +45,7 @@ const IncomeExpenseBar: React.FC<{ income: number, expense: number }> = ({ incom
                     title={`รายจ่าย: ${expense.toLocaleString('th-TH')} บาท`}
                 ></div>
             </div>
-            <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-300">
+            <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-center">
                     <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
                     <span>รายรับ ({incomePercent.toFixed(1)}%)</span>
@@ -93,8 +91,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl h-[90vh] max-h-[800px] p-6 flex flex-col modal" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">รายงานสรุปผล</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-full -mr-2">&times;</button>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">รายงานสรุปผล</h2>
+                    <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>
                 </div>
 
                 <div className="flex-grow overflow-y-auto pr-2">
@@ -104,7 +102,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
                         <div className="space-y-6">
                             <div>
                                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">ภาพรวมการใช้จ่าย</h3>
-                                <p className="bg-blue-50 dark:bg-gray-700 p-4 rounded-lg text-gray-700 dark:text-gray-300">{analysis.summary}</p>
+                                <p className="bg-blue-50 dark:bg-blue-900/50 p-4 rounded-lg text-gray-700 dark:text-gray-300">{analysis.summary}</p>
                             </div>
 
                             <div>
@@ -120,7 +118,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
                                 {analysis.topExpenseCategories.length > 0 ? (
                                     <ul className="space-y-2">
                                         {analysis.topExpenseCategories.map((item, index) => (
-                                            <li key={index} className="p-3 bg-red-50 dark:bg-gray-700 rounded-lg">
+                                            <li key={index} className="p-3 bg-red-50 dark:bg-red-900/50 rounded-lg">
                                                 <div className="flex justify-between items-center text-gray-700 dark:text-gray-300">
                                                     <span>{item.category}</span>
                                                     <span className="font-semibold">{item.amount.toLocaleString('th-TH')} บาท ({item.percentage}%)</span>
@@ -129,7 +127,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
                                         ))}
                                     </ul>
                                 ) : (
-                                    <p className="text-sm text-gray-500">ไม่มีข้อมูลรายจ่าย</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">ไม่มีข้อมูลรายจ่าย</p>
                                 )}
                             </div>
 
@@ -137,7 +135,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
                                 <h3 className="text-lg font-semibold mb-2 text-green-600 dark:text-green-400">คำแนะนำเพื่อการออม</h3>
                                 <ul className="space-y-2">
                                     {analysis.savingsSuggestions.map((item, index) => (
-                                        <li key={index} className="p-3 bg-green-50 dark:bg-gray-700 rounded-lg list-none text-gray-700 dark:text-gray-300">💡 {item}</li>
+                                        <li key={index} className="p-3 bg-green-50 dark:bg-green-900/50 rounded-lg list-none text-gray-700 dark:text-gray-300">💡 {item}</li>
                                     ))}
                                 </ul>
                             </div>

@@ -5,107 +5,197 @@ import { TransactionList } from './components/TransactionList';
 import { AddEditTransactionModal } from './components/AddEditTransactionModal';
 import { ReportModal } from './components/ReportModal';
 import { ImportSlipModal } from './components/ImportSlipModal';
+import { CategorySettingsModal } from './components/CategorySettingsModal';
 import { FilterControls } from './components/FilterControls';
 import { FloatingActionButton } from './components/FloatingActionButton';
+import { Toast, ToastProps } from './components/Toast';
 import { useTransactions } from './hooks/useTransactions';
+import { useCategories } from './hooks/useCategories';
 import { Transaction, TransactionType } from './types';
 
 function App() {
-    const { transactions, addTransaction, updateTransaction, deleteTransaction, loading, error } = useTransactions();
+    // Hooks
+    const { 
+        transactions, 
+        addTransaction, 
+        updateTransaction, 
+        deleteTransaction, 
+        income, 
+        expense,
+        loading: transactionsLoading,
+    } = useTransactions();
+    const { 
+        categories, 
+        addCategory, 
+        deleteCategory,
+    } = useCategories();
 
-    // Modal states
-    const [isAddEditModalOpen, setAddEditModalOpen] = useState(false);
-    const [isReportModalOpen, setReportModalOpen] = useState(false);
-    const [isImportModalOpen, setImportModalOpen] = useState(false);
+    // Modal States
+    const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isImportSlipModalOpen, setIsImportSlipModalOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+    // Editing State
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
-    
-    // Filter state
+
+    // Filter State
     const [filter, setFilter] = useState<{ type: 'all' | TransactionType }>({ type: 'all' });
 
-    const handleOpenAddModal = () => {
-        setTransactionToEdit(null);
-        setAddEditModalOpen(true);
+    // Toast State
+    const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
+
+    const showToast = (message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
     };
 
-    const handleOpenEditModal = (transaction: Transaction) => {
-        setTransactionToEdit(transaction);
-        setAddEditModalOpen(true);
+    // Handlers
+    const handleAddClick = () => {
+        setTransactionToEdit(null);
+        setIsAddEditModalOpen(true);
     };
-    
-    const handleSaveTransaction = (transactionData: Omit<Transaction, 'id' | 'createdAt'> | Transaction) => {
-        if ('id' in transactionData && transactionData.id) {
-            updateTransaction(transactionData as Transaction);
-        } else {
-            addTransaction(transactionData as Omit<Transaction, 'id' | 'createdAt'>);
+
+    const handleEditClick = (transaction: Transaction) => {
+        setTransactionToEdit(transaction);
+        setIsAddEditModalOpen(true);
+    };
+
+    const handleDeleteClick = async (id: string) => {
+        if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) {
+            try {
+                await deleteTransaction(id);
+                showToast('ลบรายการสำเร็จ', 'success');
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+            }
         }
     };
 
+    const handleSaveTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'> | Transaction) => {
+        try {
+            if ('id' in transaction && transaction.id) {
+                await updateTransaction(transaction as Transaction);
+                showToast('อัปเดตรายการสำเร็จ', 'success');
+            } else {
+                // Remove id and createdAt if they are empty, for new transactions from slip analysis
+                const newTransaction = { ...transaction };
+                delete (newTransaction as any).id;
+                delete (newTransaction as any).createdAt;
+                await addTransaction(newTransaction);
+                showToast('เพิ่มรายการสำเร็จ', 'success');
+            }
+            setIsAddEditModalOpen(false);
+            setTransactionToEdit(null);
+        } catch (error) {
+            showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+        }
+    };
+    
     const handleSlipAnalyzed = (analyzedData: Omit<Transaction, 'id' | 'createdAt'>) => {
-        const tempTransaction: Transaction = {
-            id: '', // Falsy ID ensures it's treated as a new transaction
-            createdAt: new Date().toISOString(), // Placeholder
+        // Open the Add/Edit modal pre-filled with slip data for user confirmation.
+        const newTransactionForEdit = {
             ...analyzedData,
+            id: '', // dummy id for the modal to know it's a new item
+            createdAt: new Date().toISOString()
         };
-        setTransactionToEdit(tempTransaction);
-        setAddEditModalOpen(true);
-    }
+        setTransactionToEdit(newTransactionForEdit as any);
+        setIsImportSlipModalOpen(false);
+        setIsAddEditModalOpen(true);
+    };
+    
+    const handleAddCategory = async (category: Omit<any, 'id' | 'created_at'>) => {
+        try {
+            await addCategory(category);
+            showToast('เพิ่มหมวดหมู่สำเร็จ', 'success');
+        } catch (error) {
+            showToast('เกิดข้อผิดพลาดในการเพิ่มหมวดหมู่', 'error');
+        }
+    };
 
-    const { income, expense, filteredTransactions } = useMemo(() => {
-        const income = transactions
-            .filter(t => t.type === TransactionType.INCOME)
-            .reduce((sum, t) => sum + t.amount, 0);
+    const handleDeleteCategory = async (id: string) => {
+        if (window.confirm('การลบหมวดหมู่จะทำให้รายการที่เกี่ยวข้องไม่มีหมวดหมู่ คุณแน่ใจหรือไม่?')) {
+            try {
+                await deleteCategory(id);
+                showToast('ลบหมวดหมู่สำเร็จ', 'success');
+            } catch (error) {
+                showToast('เกิดข้อผิดพลาดในการลบหมวดหมู่', 'error');
+            }
+        }
+    };
 
-        const expense = transactions
-            .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce((sum, t) => sum + t.amount, 0);
-        
-        const filteredTransactions = transactions.filter(
-            t => filter.type === 'all' || t.type === filter.type
-        );
-
-        return { income, expense, filteredTransactions };
+    const filteredTransactions = useMemo(() => {
+        if (filter.type === 'all') {
+            return transactions;
+        }
+        return transactions.filter(t => t.type === filter.type);
     }, [transactions, filter]);
 
     return (
-        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen font-sans text-gray-800 dark:text-gray-200">
-            <Header onOpenReport={() => setReportModalOpen(true)} onOpenImport={() => setImportModalOpen(true)} />
+        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-gray-100 font-sans transition-colors">
+            <Header onOpenReport={() => setIsReportModalOpen(true)} onOpenSettings={() => setIsSettingsModalOpen(true)} />
             
-            <main className="max-w-4xl mx-auto p-4">
+            <main className="container mx-auto p-4 md:p-6">
                 <SummaryCards income={income} expense={expense} />
-                <FilterControls filter={filter} onFilterChange={setFilter} />
                 
-                {loading && <p className="text-center">กำลังโหลด...</p>}
-                {error && <p className="text-center text-red-500">{error}</p>}
-                {!loading && !error && (
-                    <TransactionList
-                        transactions={filteredTransactions}
-                        onEdit={handleOpenEditModal}
-                        onDelete={deleteTransaction}
-                        onAddTransaction={handleOpenAddModal}
+                <div className="flex justify-between items-center my-6">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">ประวัติรายการ</h2>
+                    <button
+                        onClick={() => setIsImportSlipModalOpen(true)}
+                        className="px-4 py-2 text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                    >
+                        นำเข้าสลิป
+                    </button>
+                </div>
+
+                <FilterControls filter={filter} onFilterChange={setFilter} />
+
+                {transactionsLoading ? (
+                    <p className="text-center py-10">กำลังโหลดข้อมูลธุรกรรม...</p>
+                ) : (
+                    <TransactionList 
+                        transactions={filteredTransactions} 
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                        onAddTransaction={handleAddClick}
                     />
                 )}
             </main>
+
+            <FloatingActionButton onClick={handleAddClick} />
             
-            <FloatingActionButton onClick={handleOpenAddModal} />
-            
-            <AddEditTransactionModal
+            <AddEditTransactionModal 
                 isOpen={isAddEditModalOpen}
-                onClose={() => setAddEditModalOpen(false)}
+                onClose={() => {
+                    setIsAddEditModalOpen(false);
+                    setTransactionToEdit(null);
+                }}
                 onSave={handleSaveTransaction}
                 transactionToEdit={transactionToEdit}
+                categories={categories}
             />
-            
-            <ReportModal
+
+            <ReportModal 
                 isOpen={isReportModalOpen}
-                onClose={() => setReportModalOpen(false)}
+                onClose={() => setIsReportModalOpen(false)}
                 transactions={transactions}
             />
 
             <ImportSlipModal
-                isOpen={isImportModalOpen}
-                onClose={() => setImportModalOpen(false)}
+                isOpen={isImportSlipModalOpen}
+                onClose={() => setIsImportSlipModalOpen(false)}
                 onSlipAnalyzed={handleSlipAnalyzed}
+                categories={categories}
             />
+
+            <CategorySettingsModal
+                isOpen={isSettingsModalOpen}
+                onClose={() => setIsSettingsModalOpen(false)}
+                categories={categories}
+                onAddCategory={handleAddCategory}
+                onDeleteCategory={handleDeleteCategory}
+            />
+
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>
     );
 }

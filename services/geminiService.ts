@@ -1,15 +1,9 @@
 // services/geminiService.ts
 import { GoogleGenAI, Type } from "@google/genai";
-import { Transaction, TransactionType } from '../types';
-import { CATEGORIES } from '../constants';
+import { Transaction, TransactionType, Category } from '../types';
 
-// --- DEFINITIVE FIX FOR VERCEL DEPLOYMENT ---
-// In a no-build, importmap-based environment, there's no secure way to get
-// environment variables from Vercel to the client. The only way to make this work
-// is to hardcode the key. This is not ideal for security but necessary for this architecture.
-const API_KEY = 'AIzaSyCEA0rxnPZHvE0tWmGTdLi9Z9R57GYcfcY';
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// FIX: Initialize the GoogleGenAI client using the API_KEY from environment variables as per the guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
 const analysisSchema = {
     type: Type.OBJECT,
@@ -86,31 +80,35 @@ export const analyzeSpending = async (transactions: Transaction[]) => {
     return JSON.parse(jsonText);
 };
 
-const slipSchema = {
-    type: Type.OBJECT,
-    properties: {
-        type: {
-            type: Type.STRING,
-            enum: [TransactionType.INCOME, TransactionType.EXPENSE],
-            description: `ประเภทของธุรกรรม ถ้าเป็นการโอนเงินให้ผู้อื่นหรือจ่ายเงิน ให้เป็น '${TransactionType.EXPENSE}' ถ้าเป็นการรับเงินให้เป็น '${TransactionType.INCOME}'`
-        },
-        category: {
-            type: Type.STRING,
-            description: `หมวดหมู่ของธุรกรรมจากรายการต่อไปนี้: ${[...CATEGORIES.expense, ...CATEGORIES.income].join(', ')}. ถ้าไม่แน่ใจให้ใช้ 'อื่นๆ'.`
-        },
-        amount: {
-            type: Type.NUMBER,
-            description: "จำนวนเงินของธุรกรรม"
-        },
-        note: {
-            type: Type.STRING,
-            description: "สรุปสั้นๆ เกี่ยวกับธุรกรรม เช่น ชื่อผู้รับ/ผู้โอน หรือบันทึกช่วยจำ ถ้ามี"
-        }
-    },
-    required: ["type", "category", "amount", "note"]
-};
+export const analyzeSlip = async (base64Image: string, mimeType: string, categories: Category[]): Promise<Omit<Transaction, 'id' | 'createdAt'>> => {
+    const incomeCategories = categories.filter(c => c.type === 'income').map(c => c.name);
+    const expenseCategories = categories.filter(c => c.type === 'expense').map(c => c.name);
+    const allCategoryNames = categories.map(c => c.name);
 
-export const analyzeSlip = async (base64Image: string, mimeType: string): Promise<Omit<Transaction, 'id' | 'createdAt'>> => {
+    const slipSchema = {
+        type: Type.OBJECT,
+        properties: {
+            type: {
+                type: Type.STRING,
+                enum: [TransactionType.INCOME, TransactionType.EXPENSE],
+                description: `ประเภทของธุรกรรม ถ้าเป็นการโอนเงินให้ผู้อื่นหรือจ่ายเงิน ให้เป็น '${TransactionType.EXPENSE}' ถ้าเป็นการรับเงินให้เป็น '${TransactionType.INCOME}'`
+            },
+            category: {
+                type: Type.STRING,
+                description: `หมวดหมู่ของธุรกรรมจากรายการต่อไปนี้: ${allCategoryNames.join(', ')}. ถ้าไม่แน่ใจให้ใช้ 'อื่นๆ'.`
+            },
+            amount: {
+                type: Type.NUMBER,
+                description: "จำนวนเงินของธุรกรรม"
+            },
+            note: {
+                type: Type.STRING,
+                description: "สรุปสั้นๆ เกี่ยวกับธุรกรรม เช่น ชื่อผู้รับ/ผู้โอน หรือบันทึกช่วยจำ ถ้ามี"
+            }
+        },
+        required: ["type", "category", "amount", "note"]
+    };
+
     const imagePart = {
         inlineData: {
             data: base64Image,
@@ -122,7 +120,7 @@ export const analyzeSlip = async (base64Image: string, mimeType: string): Promis
         text: `
             วิเคราะห์รูปภาพสลิปการโอนเงินนี้ และดึงข้อมูลออกมาเป็น JSON ภาษาไทย
             - type: ถ้าเป็นการโอนเงินให้ผู้อื่นหรือจ่ายเงิน ให้เป็น 'expense' ถ้าเป็นการรับเงินให้เป็น 'income'
-            - category: เลือกหมวดหมู่ที่เหมาะสมที่สุดจากรายการนี้: ${[...CATEGORIES.expense, ...CATEGORIES.income].join(', ')}. หากไม่สามารถระบุได้ ให้ใช้ "อื่นๆ".
+            - category: เลือกหมวดหมู่ที่เหมาะสมที่สุดจากรายการนี้: ${allCategoryNames.join(', ')}. หากไม่สามารถระบุได้ ให้ใช้ "อื่นๆ".
             - amount: จำนวนเงิน
             - note: บันทึกสั้นๆ เช่น ชื่อผู้รับ, ชื่อผู้โอน, หรือรายละเอียดอื่นๆ ที่มีประโยชน์
         `
@@ -140,9 +138,11 @@ export const analyzeSlip = async (base64Image: string, mimeType: string): Promis
     const jsonText = response.text.trim();
     const result = JSON.parse(jsonText);
 
-    const validCategories = CATEGORIES[result.type as TransactionType] ?? [];
+    // Validate the category returned by the AI
+    const validCategories = result.type === TransactionType.INCOME ? incomeCategories : expenseCategories;
     if (!validCategories.includes(result.category)) {
         result.category = 'อื่นๆ';
+        // Ensure 'อื่นๆ' exists for the type, or handle appropriately
     }
 
     return result;

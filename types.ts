@@ -12,3 +12,10 @@ export interface Transaction {
     note: string;
     createdAt: string;
 }
+
+export interface Category {
+    id: string;
+    name: string;
+    type: TransactionType;
+    created_at: string;
+}
