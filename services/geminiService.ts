@@ -3,14 +3,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType } from '../types';
 import { CATEGORIES } from '../constants';
 
-// FIX: Replaced `import.meta.env.VITE_API_KEY` with `process.env.API_KEY` to align with the Gemini API guidelines and resolve the TypeScript error 'Property 'env' does not exist on type 'ImportMeta''.
-const apiKey = process.env.API_KEY;
-
-if (!apiKey) {
-    throw new Error("The API_KEY environment variable is not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey });
+// FIX: Per @google/genai coding guidelines, the API key must be read from
+// `process.env.API_KEY` and the client must be initialized with it directly.
+// The previous use of `import.meta.env.VITE_API_KEY` caused a TypeScript error
+// and did not follow the specified guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const analysisSchema = {
     type: Type.OBJECT,
