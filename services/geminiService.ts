@@ -1,54 +1,61 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType } from '../types';
-import { CATEGORIES } from "../constants";
+import { CATEGORIES } from '../constants';
 
-// Fix: Initialize the GoogleGenAI client according to guidelines.
+// Initialize the Google Gemini API client. The API key must be provided
+// through the `process.env.API_KEY` environment variable.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
+// This interface matches the expected structure in the ReportModal component.
+interface AnalysisResult {
+    summary: string;
+    topExpenseCategories: { category: string; amount: number; percentage: number }[];
+    savingsSuggestions: string[];
+    monthlyChartData: { income: number; expense: number };
+}
+
 /**
- * Analyzes a list of transactions to provide a spending report.
+ * Analyzes a list of transactions to provide a spending summary, top expense categories,
+ * and savings suggestions using the Gemini API.
  * @param transactions - An array of transaction objects.
- * @returns An object containing the analysis result.
+ * @returns A promise that resolves to an AnalysisResult object.
  */
-export const analyzeSpending = async (transactions: Transaction[]) => {
+export const analyzeSpending = async (transactions: Transaction[]): Promise<AnalysisResult> => {
+    // If there are no transactions, return a default empty state.
     if (transactions.length === 0) {
-        // Handle case with no transactions to avoid API call
         return {
-            summary: "ไม่มีข้อมูลธุรกรรมที่จะวิเคราะห์",
+            summary: 'ยังไม่มีข้อมูลธุรกรรมสำหรับวิเคราะห์',
             topExpenseCategories: [],
-            savingsSuggestions: ["เพิ่มธุรกรรมเพื่อรับคำแนะนำ"],
+            savingsSuggestions: ['เพิ่มรายการธุรกรรมเพื่อรับคำแนะนำ'],
             monthlyChartData: { income: 0, expense: 0 },
         };
     }
 
-    // Fix: Use a model suitable for complex text analysis like gemini-2.5-pro.
-    const model = 'gemini-2.5-pro';
+    const model = 'gemini-2.5-flash';
 
     const prompt = `
-        วิเคราะห์ข้อมูลรายรับรายจ่ายต่อไปนี้ในสกุลเงินบาท (THB) และให้สรุปผลเป็นภาษาไทย:
+        วิเคราะห์ข้อมูลรายรับรายจ่ายต่อไปนี้ในรูปแบบภาษาไทย:
         ${JSON.stringify(transactions)}
 
-        โปรดสรุปภาพรวมการใช้จ่าย, ระบุหมวดหมู่รายจ่ายที่สูงสุด 3-5 อันดับแรกพร้อมจำนวนเงินและเปอร์เซ็นต์เทียบกับรายจ่ายทั้งหมด, 
-        และให้คำแนะนำในการออมเงิน 3 ข้อที่เป็นรูปธรรม
-        และคำนวณยอดรวมรายรับและรายจ่ายทั้งหมด
+        โปรดให้ข้อมูลสรุปภาพรวมการใช้จ่าย, รายการหมวดหมู่รายจ่ายสูงสุด 3 อันดับแรก (พร้อมจำนวนเงินและเปอร์เซ็นต์เทียบกับรายจ่ายทั้งหมด), และคำแนะนำในการออม 3 ข้อ
     `;
 
-    // Fix: Define a response schema for structured JSON output.
+    // Define the expected JSON schema for the model's response.
     const responseSchema = {
         type: Type.OBJECT,
         properties: {
             summary: {
                 type: Type.STRING,
-                description: 'สรุปภาพรวมการใช้จ่ายเป็นภาษาไทย'
+                description: 'สรุปภาพรวมการใช้จ่ายใน 1-2 ประโยค'
             },
             topExpenseCategories: {
                 type: Type.ARRAY,
-                description: 'หมวดหมู่รายจ่ายที่สูงสุด 3-5 อันดับแรก',
+                description: 'รายการหมวดหมู่รายจ่ายสูงสุด 3 อันดับแรก',
                 items: {
                     type: Type.OBJECT,
                     properties: {
                         category: { type: Type.STRING, description: 'ชื่อหมวดหมู่' },
-                        amount: { type: Type.NUMBER, description: 'จำนวนเงิน' },
+                        amount: { type: Type.NUMBER, description: 'จำนวนเงินรวมของหมวดหมู่นี้' },
                         percentage: { type: Type.NUMBER, description: 'เปอร์เซ็นต์เทียบกับรายจ่ายทั้งหมด' }
                     },
                     required: ['category', 'amount', 'percentage']
@@ -56,79 +63,95 @@ export const analyzeSpending = async (transactions: Transaction[]) => {
             },
             savingsSuggestions: {
                 type: Type.ARRAY,
-                description: 'คำแนะนำในการออมเงิน 3 ข้อที่เป็นรูปธรรม',
+                description: 'คำแนะนำในการออม 3 ข้อ',
                 items: {
                     type: Type.STRING
                 }
-            },
-            monthlyChartData: {
-                type: Type.OBJECT,
-                description: 'ยอดรวมรายรับและรายจ่าย',
-                properties: {
-                    income: { type: Type.NUMBER, description: 'ยอดรวมรายรับ' },
-                    expense: { type: Type.NUMBER, description: 'ยอดรวมรายจ่าย' }
-                },
-                required: ['income', 'expense']
             }
         },
-        required: ['summary', 'topExpenseCategories', 'savingsSuggestions', 'monthlyChartData']
+        required: ['summary', 'topExpenseCategories', 'savingsSuggestions']
     };
 
-    // Fix: Call the Gemini API using generateContent with the prompt and schema.
-    const response = await ai.models.generateContent({
+    // Call the Gemini API to generate content.
+    const result = await ai.models.generateContent({
         model: model,
         contents: prompt,
         config: {
             responseMimeType: "application/json",
             responseSchema: responseSchema,
-        },
+        }
     });
 
-    // Fix: Parse the JSON text from the response.
-    const jsonResponse = JSON.parse(response.text);
-    return jsonResponse;
+    const jsonResponse = JSON.parse(result.text.trim());
+
+    // Calculate income and expense totals locally for accuracy.
+    const income = transactions
+        .filter(t => t.type === TransactionType.INCOME)
+        .reduce((sum, t) => sum + t.amount, 0);
+
+    const expense = transactions
+        .filter(t => t.type === TransactionType.EXPENSE)
+        .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+        ...jsonResponse,
+        monthlyChartData: { income, expense },
+    };
 };
 
 /**
- * Analyzes an image of a transaction slip to extract details.
- * @param base64Image - The base64 encoded string of the slip image.
- * @param mimeType - The MIME type of the image.
- * @returns A promise that resolves to a new transaction object.
+ * Analyzes an image of a transaction slip to extract transaction details
+ * using the Gemini API's multimodal capabilities.
+ * @param base64Image - The base64-encoded string of the slip image.
+ * @param mimeType - The MIME type of the image (e.g., 'image/jpeg').
+ * @returns A promise that resolves to a partial Transaction object.
  */
 export const analyzeSlip = async (base64Image: string, mimeType: string): Promise<Omit<Transaction, 'id' | 'createdAt'>> => {
-    // Fix: Use a multimodal model like gemini-2.5-flash for this task.
     const model = 'gemini-2.5-flash';
 
     const imagePart = {
         inlineData: {
             data: base64Image,
-            mimeType: mimeType
-        }
+            mimeType: mimeType,
+        },
     };
 
     const textPart = {
         text: `
-            วิเคราะห์รูปภาพสลิปการโอนเงินนี้ และดึงข้อมูลออกมาเป็น JSON object.
-            - amount: จำนวนเงินที่จ่าย (เป็นตัวเลขเท่านั้น)
-            - category: หมวดหมู่ของรายจ่ายที่เหมาะสมที่สุดจากรายการต่อไปนี้: [${CATEGORIES.expense.join(', ')}]. ถ้าไม่แน่ใจ ให้ใช้ 'อื่นๆ'.
-            - note: บันทึกช่วยจำสั้นๆ จากสลิป (เช่น ชื่อร้านค้า, บริการ, หรือบันทึกของผู้โอน). ถ้าไม่มีข้อมูล ให้เว้นว่างเป็น string เปล่า "".
-            - type: ประเภทของธุรกรรม. เนื่องจากเป็นการจ่ายเงินจากสลิป ให้กำหนดเป็น '${TransactionType.EXPENSE}' เสมอ.
-        `
+            จากรูปภาพสลิปการโอนเงินนี้ โปรดดึงข้อมูลและจัดในรูปแบบ JSON ที่กำหนด
+            - 'type': ประเภทของธุรกรรม ถ้าเป็นการจ่ายเงินให้เป็น 'expense' ถ้าเป็นการรับเงินให้เป็น 'income' สลิปส่วนใหญ่จะเป็น 'expense'
+            - 'category': หมวดหมู่ของรายจ่าย/รายรับ โดยเลือกจากรายการต่อไปนี้เท่านั้น:
+                - รายรับ: ${CATEGORIES.income.join(', ')}
+                - รายจ่าย: ${CATEGORIES.expense.join(', ')}
+              เลือกหมวดหมู่ที่เกี่ยวข้องที่สุด หากไม่แน่ใจให้ใช้ 'อื่นๆ'
+            - 'amount': จำนวนเงิน (เป็นตัวเลขเท่านั้น)
+            - 'note': บันทึกช่วยจำสั้นๆ จากในสลิป (เช่น ชื่อร้านค้า, ชื่อผู้รับ, หรือข้อความบันทึกช่วยจำ) หากไม่มีให้เว้นว่าง
+        `,
     };
-
-    // Fix: Define a response schema for structured JSON output.
+    
+    // Define the expected JSON schema for the model's response.
     const responseSchema = {
         type: Type.OBJECT,
         properties: {
-            amount: { type: Type.NUMBER, description: 'จำนวนเงิน' },
-            category: { type: Type.STRING, description: 'หมวดหมู่', enum: CATEGORIES.expense },
-            note: { type: Type.STRING, description: 'บันทึกช่วยจำ' },
-            type: { type: Type.STRING, description: 'ประเภทธุรกรรม', enum: [TransactionType.EXPENSE] }
+            type: {
+                type: Type.STRING,
+                enum: [TransactionType.INCOME, TransactionType.EXPENSE]
+            },
+            category: {
+                type: Type.STRING,
+                description: `เลือกหนึ่งหมวดหมู่จาก: ${[...CATEGORIES.income, ...CATEGORIES.expense].join(', ')}`
+            },
+            amount: {
+                type: Type.NUMBER
+            },
+            note: {
+                type: Type.STRING
+            }
         },
-        required: ['amount', 'category', 'note', 'type']
+        required: ['type', 'category', 'amount', 'note']
     };
 
-    // Fix: Call the Gemini API with both image and text parts.
+    // Call the Gemini API with both image and text parts.
     const response = await ai.models.generateContent({
         model: model,
         contents: { parts: [imagePart, textPart] },
@@ -137,18 +160,13 @@ export const analyzeSlip = async (base64Image: string, mimeType: string): Promis
             responseSchema: responseSchema,
         },
     });
-    
-    // Fix: Parse the JSON text from the response.
-    const jsonResponse = JSON.parse(response.text);
 
-    // Basic validation to ensure the response is in the expected format.
-    if (
-        typeof jsonResponse.amount !== 'number' ||
-        !CATEGORIES.expense.includes(jsonResponse.category) ||
-        typeof jsonResponse.note !== 'string' ||
-        jsonResponse.type !== TransactionType.EXPENSE
-    ) {
-        throw new Error('ข้อมูลที่ได้จากสลิปไม่ถูกต้องหรือไม่สมบูรณ์');
+    const jsonResponse = JSON.parse(response.text.trim());
+    
+    // Validate the category returned by the model and fallback to 'อื่นๆ' if it's invalid.
+    const validCategories = CATEGORIES[jsonResponse.type as TransactionType] || CATEGORIES.expense;
+    if (!validCategories.includes(jsonResponse.category)) {
+        jsonResponse.category = 'อื่นๆ';
     }
 
     return jsonResponse;
