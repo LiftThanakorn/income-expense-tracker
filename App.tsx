@@ -131,14 +131,17 @@ function App() {
     }, [transactions, filter]);
 
     return (
-        <div className="bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-gray-100 font-sans transition-colors">
-            <Header onOpenReport={() => setIsReportModalOpen(true)} onOpenSettings={() => setIsSettingsModalOpen(true)} />
+        <div className="bg-gray-900 min-h-screen text-gray-100 font-sans">
+            <Header 
+                onOpenReport={() => setIsReportModalOpen(true)} 
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+            />
             
             <main className="container mx-auto p-4 md:p-6">
                 <SummaryCards income={income} expense={expense} />
                 
                 <div className="flex justify-between items-center my-6">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">ประวัติรายการ</h2>
+                    <h2 className="text-xl font-bold text-gray-200">ประวัติรายการ</h2>
                     <button
                         onClick={() => setIsImportSlipModalOpen(true)}
                         className="px-4 py-2 text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"

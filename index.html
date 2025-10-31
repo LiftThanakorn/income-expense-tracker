@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" class="dark">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,12 +11,9 @@
     <style>
         body { font-family: 'Kanit', sans-serif; }
         .modal::-webkit-scrollbar { width: 8px; }
-        .modal::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-        .modal::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-        .modal::-webkit-scrollbar-thumb:hover { background: #555; }
-        .dark .modal::-webkit-scrollbar-track { background: #2d3748; }
-        .dark .modal::-webkit-scrollbar-thumb { background: #718096; }
-        .dark .modal::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+        .modal::-webkit-scrollbar-track { background: #2d3748; border-radius: 10px; }
+        .modal::-webkit-scrollbar-thumb { background: #718096; border-radius: 10px; }
+        .modal::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
     </style>
     <script type="importmap">
     {
@@ -29,16 +26,8 @@
       }
     }
     </script>
-    <script>
-      // Apply dark mode immediately to prevent flash of light mode
-      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    </script>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900">
+<body class="bg-gray-900">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

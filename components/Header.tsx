@@ -1,5 +1,4 @@
 import React from 'react';
-import { DarkModeToggle } from './DarkModeToggle';
 import { Cog6ToothIcon } from './Icons';
 
 interface HeaderProps {
@@ -9,8 +8,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenReport, onOpenSettings }) => {
     return (
-        <header className="sticky top-0 z-30 p-4 flex justify-between items-center shadow-md bg-white dark:bg-gray-800 transition-colors">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+        <header className="sticky top-0 z-30 p-4 flex justify-between items-center shadow-md bg-gray-800">
+            <h1 className="text-2xl font-bold text-gray-200">
                 💰 Money Tracker
             </h1>
             <div className="flex items-center gap-2 md:gap-4">
@@ -22,12 +21,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenReport, onOpenSettings }) 
                 </button>
                 <button
                     onClick={onOpenSettings}
-                    className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="p-2 rounded-full text-gray-400 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     aria-label="Settings"
                 >
                     <Cog6ToothIcon className="w-6 h-6" />
                 </button>
-                <DarkModeToggle />
             </div>
         </header>
     );

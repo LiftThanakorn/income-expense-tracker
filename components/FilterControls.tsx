@@ -8,7 +8,7 @@ interface FilterControlsProps {
 
 export const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange, filter }) => {
     const baseClasses = "px-4 py-2 font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors";
-    const inactiveClasses = "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600";
+    const inactiveClasses = "bg-gray-700 hover:bg-gray-600";
     
     return (
         <div className="flex justify-center my-4">
@@ -21,13 +21,13 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange, 
                 </button>
                 <button
                     onClick={() => onFilterChange({ type: TransactionType.INCOME })}
-                    className={`${baseClasses} ${filter.type === TransactionType.INCOME ? 'bg-green-600 text-white' : `${inactiveClasses} text-green-500 dark:text-green-400`}`}
+                    className={`${baseClasses} ${filter.type === TransactionType.INCOME ? 'bg-green-600 text-white' : `${inactiveClasses} text-green-400`}`}
                 >
                     รายรับ
                 </button>
                 <button
                     onClick={() => onFilterChange({ type: TransactionType.EXPENSE })}
-                    className={`${baseClasses} rounded-r-md ${filter.type === TransactionType.EXPENSE ? 'bg-red-600 text-white' : `${inactiveClasses} text-red-500 dark:text-red-400`}`}
+                    className={`${baseClasses} rounded-r-md ${filter.type === TransactionType.EXPENSE ? 'bg-red-600 text-white' : `${inactiveClasses} text-red-400`}`}
                 >
                     รายจ่าย
                 </button>

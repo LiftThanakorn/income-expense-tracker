@@ -78,26 +78,26 @@ export const ImportSlipModal: React.FC<ImportSlipModalProps> = ({ isOpen, onClos
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={handleClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4" onClick={e => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">นำเข้าสลิป</h2>
+            <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold mb-4 text-gray-200">นำเข้าสลิป</h2>
                 
                 <div className="mb-4">
                     <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
                     
                     {!preview ? (
-                        <div onClick={triggerFileSelect} className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md cursor-pointer hover:border-blue-500 dark:hover:border-blue-400">
+                        <div onClick={triggerFileSelect} className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md cursor-pointer hover:border-blue-400">
                             <div className="space-y-1 text-center">
-                                <ArrowUpTrayIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    <span className="font-medium text-blue-600 dark:text-blue-400">อัปโหลดไฟล์</span> หรือลากและวาง
+                                <ArrowUpTrayIcon className="mx-auto h-12 w-12 text-gray-500" />
+                                <p className="text-sm text-gray-400">
+                                    <span className="font-medium text-blue-400">อัปโหลดไฟล์</span> หรือลากและวาง
                                 </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF</p>
+                                <p className="text-xs text-gray-400">PNG, JPG, GIF</p>
                             </div>
                         </div>
                     ) : (
                         <div className="mt-2 text-center">
                             <img src={preview} alt="Slip preview" className="max-h-60 mx-auto rounded-md shadow-md" />
-                            <button onClick={triggerFileSelect} className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">เปลี่ยนรูปภาพ</button>
+                            <button onClick={triggerFileSelect} className="mt-2 text-sm text-blue-400 hover:underline">เปลี่ยนรูปภาพ</button>
                         </div>
                     )}
                 </div>
@@ -105,7 +105,7 @@ export const ImportSlipModal: React.FC<ImportSlipModalProps> = ({ isOpen, onClos
                 {error && <p className="text-red-500 text-sm text-center my-2">{error}</p>}
 
                 <div className="flex justify-end gap-3 mt-6">
-                    <button type="button" onClick={handleClose} className="px-4 py-2 rounded-md font-semibold text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">ยกเลิก</button>
+                    <button type="button" onClick={handleClose} className="px-4 py-2 rounded-md font-semibold text-gray-300 bg-gray-600 hover:bg-gray-500">ยกเลิก</button>
                     <button 
                         type="button" 
                         onClick={handleAnalyze}
