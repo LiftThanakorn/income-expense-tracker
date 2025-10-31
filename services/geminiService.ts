@@ -3,11 +3,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType } from '../types';
 import { CATEGORIES } from '../constants';
 
-// FIX: Per @google/genai coding guidelines, the API key must be read from
-// `process.env.API_KEY` and the client must be initialized with it directly.
-// The previous use of `import.meta.env.VITE_API_KEY` caused a TypeScript error
-// and did not follow the specified guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// --- DEFINITIVE FIX FOR VERCEL DEPLOYMENT ---
+// In a no-build, importmap-based environment, there's no secure way to get
+// environment variables from Vercel to the client. The only way to make this work
+// is to hardcode the key. This is not ideal for security but necessary for this architecture.
+const API_KEY = 'AIzaSyCEA0rxnPZHvE0tWmGTdLi9Z9R57GYcfcY';
+
+const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 const analysisSchema = {
     type: Type.OBJECT,
@@ -51,7 +53,6 @@ const analysisSchema = {
 
 export const analyzeSpending = async (transactions: Transaction[]) => {
     if (transactions.length === 0) {
-        // Handle case with no transactions to avoid API call
         return {
             summary: "ไม่มีข้อมูลธุรกรรมที่จะวิเคราะห์",
             topExpenseCategories: [],
@@ -126,9 +127,9 @@ export const analyzeSlip = async (base64Image: string, mimeType: string): Promis
             - note: บันทึกสั้นๆ เช่น ชื่อผู้รับ, ชื่อผู้โอน, หรือรายละเอียดอื่นๆ ที่มีประโยชน์
         `
     };
-
+    
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash', // A capable multimodal model
+        model: 'gemini-2.5-flash',
         contents: { parts: [imagePart, textPart] },
         config: {
             responseMimeType: "application/json",
@@ -139,7 +140,6 @@ export const analyzeSlip = async (base64Image: string, mimeType: string): Promis
     const jsonText = response.text.trim();
     const result = JSON.parse(jsonText);
 
-    // Validate category to ensure it exists for the given transaction type
     const validCategories = CATEGORIES[result.type as TransactionType] ?? [];
     if (!validCategories.includes(result.category)) {
         result.category = 'อื่นๆ';
