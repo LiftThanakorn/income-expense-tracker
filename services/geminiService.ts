@@ -1,10 +1,16 @@
+// services/geminiService.ts
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType } from '../types';
 import { CATEGORIES } from '../constants';
 
-// Fix for: 'Cannot find name 'full'', 'contents', etc. and module not found errors.
-// This file was missing. It's being created to provide the AI-powered analysis functions.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// FIX: Replaced `import.meta.env.VITE_API_KEY` with `process.env.API_KEY` to align with the Gemini API guidelines and resolve the TypeScript error 'Property 'env' does not exist on type 'ImportMeta''.
+const apiKey = process.env.API_KEY;
+
+if (!apiKey) {
+    throw new Error("The API_KEY environment variable is not set.");
+}
+
+const ai = new GoogleGenAI({ apiKey });
 
 const analysisSchema = {
     type: Type.OBJECT,
