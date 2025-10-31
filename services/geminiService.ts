@@ -2,8 +2,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType, Category } from '../types';
 
-// FIX: Initialize the GoogleGenAI client using the API_KEY from environment variables as per the guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// FIX: Per coding guidelines, API key must be retrieved from process.env.API_KEY.
+// This resolves the TypeScript error by removing the hardcoded key and the problematic conditional check.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 
 const analysisSchema = {
     type: Type.OBJECT,
@@ -91,7 +93,7 @@ export const analyzeSlip = async (base64Image: string, mimeType: string, categor
             type: {
                 type: Type.STRING,
                 enum: [TransactionType.INCOME, TransactionType.EXPENSE],
-                description: `ประเภทของธุรกรรม ถ้าเป็นการโอนเงินให้ผู้อื่นหรือจ่ายเงิน ให้เป็น '${TransactionType.EXPENSE}' ถ้าเป็นการรับเงินให้เป็น '${TransactionType.INCOME}'`
+                description: `ประเภทของธุรกรรม ถ้าเป็นการโอนเงินให้ผูอื่นหรือจ่ายเงิน ให้เป็น '${TransactionType.EXPENSE}' ถ้าเป็นการรับเงินให้เป็น '${TransactionType.INCOME}'`
             },
             category: {
                 type: Type.STRING,
@@ -119,7 +121,7 @@ export const analyzeSlip = async (base64Image: string, mimeType: string, categor
     const textPart = {
         text: `
             วิเคราะห์รูปภาพสลิปการโอนเงินนี้ และดึงข้อมูลออกมาเป็น JSON ภาษาไทย
-            - type: ถ้าเป็นการโอนเงินให้ผู้อื่นหรือจ่ายเงิน ให้เป็น 'expense' ถ้าเป็นการรับเงินให้เป็น 'income'
+            - type: ถ้าเป็นการโอนเงินให้ผูอื่นหรือจ่ายเงิน ให้เป็น 'expense' ถ้าเป็นการรับเงินให้เป็น 'income'
             - category: เลือกหมวดหมู่ที่เหมาะสมที่สุดจากรายการนี้: ${allCategoryNames.join(', ')}. หากไม่สามารถระบุได้ ให้ใช้ "อื่นๆ".
             - amount: จำนวนเงิน
             - note: บันทึกสั้นๆ เช่น ชื่อผู้รับ, ชื่อผู้โอน, หรือรายละเอียดอื่นๆ ที่มีประโยชน์
