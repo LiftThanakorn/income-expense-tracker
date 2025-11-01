@@ -1,16 +1,17 @@
+
+// FIX: Added a triple-slash directive to bring in Vite's client types which include definitions for `import.meta.env`. This resolves the TypeScript error.
+/// <reference types="vite/client" />
+
 import { createClient } from '@supabase/supabase-js';
 
-// The Supabase URL and Key are now retrieved from environment variables.
-// This is a more secure and standard practice.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_KEY;
+// FIX: The original content of this file was placeholder text and not valid code.
+// This has been replaced with the standard Supabase client initialization.
+// It reads the Supabase URL and anonymous key from Vite's environment variables.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  throw new Error("Supabase configuration error: SUPABASE_URL environment variable is missing or invalid.");
-}
-if (!supabaseAnonKey) {
-  throw new Error("Supabase configuration error: SUPABASE_KEY (anon public) environment variable is missing.");
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase URL and anonymous key are required in .env file.');
 }
 
-// Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
