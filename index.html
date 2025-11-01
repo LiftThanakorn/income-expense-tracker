@@ -8,9 +8,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;700&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Sarabun', 'sans-serif'],
+              prompt: ['Prompt', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
     <style>
-        body { font-family: 'Sarabun', sans-serif; }
-        h1, h2, h3, h4, h5, h6 { font-family: 'Prompt', sans-serif; }
+        /* This configures Tailwind so the `font-sans` utility class applies Sarabun. */
+        /* The rule below ensures all heading elements use the Prompt font by default. */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Prompt', sans-serif;
+        }
         .modal::-webkit-scrollbar { width: 8px; }
         .modal::-webkit-scrollbar-track { background: #2d3748; border-radius: 10px; }
         .modal::-webkit-scrollbar-thumb { background: #718096; border-radius: 10px; }
