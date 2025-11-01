@@ -2,9 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType, Category } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-
 const analysisSchema = {
     type: Type.OBJECT,
     properties: {
@@ -55,6 +52,8 @@ export const analyzeSpending = async (transactions: Transaction[]) => {
         };
     }
 
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     const prompt = `
         วิเคราะห์ข้อมูลรายรับรายจ่ายต่อไปนี้ และให้ผลลัพธ์เป็น JSON ภาษาไทย
         ข้อมูลธุรกรรม:
@@ -81,6 +80,7 @@ export const analyzeSpending = async (transactions: Transaction[]) => {
 };
 
 export const analyzeSlip = async (base64Image: string, mimeType: string, categories: Category[]): Promise<Omit<Transaction, 'id' | 'createdAt'>> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const incomeCategories = categories.filter(c => c.type === 'income').map(c => c.name);
     const expenseCategories = categories.filter(c => c.type === 'expense').map(c => c.name);
     const allCategoryNames = categories.map(c => c.name);
