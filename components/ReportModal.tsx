@@ -1,7 +1,10 @@
+
 // FIX: Corrected the import for React and hooks to resolve multiple compilation errors.
-import React, { useState, useEffect } from 'react';
-import { Transaction } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Transaction, TransactionType } from '../types';
 import { analyzeSpending } from '../services/geminiService';
+import { PieChart } from './PieChart';
+import { LineChart } from './LineChart';
 
 interface ReportModalProps {
     isOpen: boolean;
@@ -22,51 +25,13 @@ const LoadingSpinner: React.FC = () => (
     </div>
 );
 
-const IncomeExpenseBar: React.FC<{ income: number, expense: number }> = ({ income, expense }) => {
-    const total = income + expense;
-    if (total === 0) {
-        return <div className="text-center text-gray-400">ไม่มีข้อมูลสำหรับแสดงกราฟ</div>;
-    }
-
-    const incomePercent = (income / total) * 100;
-    const expensePercent = (expense / total) * 100;
-
-    return (
-        <div className="w-full">
-            <div className="flex w-full h-8 rounded-full overflow-hidden bg-gray-700">
-                <div 
-                    className="bg-green-500 transition-all duration-500" 
-                    style={{ width: `${incomePercent}%` }}
-                    title={`รายรับ: ${income.toLocaleString('th-TH')} บาท`}
-                ></div>
-                <div 
-                    className="bg-red-500 transition-all duration-500" 
-                    style={{ width: `${expensePercent}%` }}
-                    title={`รายจ่าย: ${expense.toLocaleString('th-TH')} บาท`}
-                ></div>
-            </div>
-            <div className="flex justify-between mt-2 text-sm text-gray-400">
-                <div className="flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
-                    <span>รายรับ ({incomePercent.toFixed(1)}%)</span>
-                </div>
-                <div className="flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
-                    <span>รายจ่าย ({expensePercent.toFixed(1)}%)</span>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
 export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, transactions }) => {
     const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && transactions.length > 0) {
             const getAnalysis = async () => {
                 setLoading(true);
                 setError(null);
@@ -82,64 +47,89 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
                 }
             };
             getAnalysis();
+        } else if (isOpen) {
+            setLoading(false);
+            setError(null);
+            setAnalysis(null);
         }
     }, [isOpen, transactions]);
+
+    const chartData = useMemo(() => {
+        if (!transactions || transactions.length === 0) {
+            return { pieData: [], lineData: [] };
+        }
+
+        const expenseByCategory = transactions
+            .filter(t => t.type === TransactionType.EXPENSE)
+            .reduce((acc, t) => {
+                acc[t.category] = (acc[t.category] || 0) + t.amount;
+                return acc;
+            }, {} as Record<string, number>);
+
+        const pieData = Object.entries(expenseByCategory)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+
+        const dataByDay = transactions.reduce((acc, t) => {
+            const day = new Date(t.createdAt).toISOString().split('T')[0];
+            if (!acc[day]) {
+                acc[day] = { date: day, income: 0, expense: 0 };
+            }
+            acc[day][t.type] += t.amount;
+            return acc;
+        }, {} as Record<string, { date: string, income: number, expense: number }>);
+        
+        const lineData = Object.values(dataByDay)
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        return { pieData, lineData };
+    }, [transactions]);
+
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
-            <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl h-[90vh] max-h-[800px] p-6 flex flex-col modal" onClick={e => e.stopPropagation()}>
+            <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[800px] p-6 flex flex-col modal" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold text-gray-200">รายงานสรุปผล</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto pr-2">
-                    {loading && <LoadingSpinner />}
-                    {error && <p className="text-center text-red-500 mt-10">{error}</p>}
-                    {analysis && (
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2 text-blue-400">ภาพรวมการใช้จ่าย</h3>
-                                <p className="bg-blue-900/50 p-4 rounded-lg text-gray-300">{analysis.summary}</p>
+                <div className="flex-grow overflow-y-auto pr-2 space-y-8">
+                    {transactions.length === 0 ? (
+                         <p className="text-center text-gray-400 mt-10">ไม่มีข้อมูลธุรกรรมในช่วงเวลานี้</p>
+                    ) : (
+                        <>
+                             <div>
+                                <h3 className="text-lg font-semibold mb-3 text-amber-400">แนวโน้มการเงิน</h3>
+                                <LineChart data={chartData.lineData} />
                             </div>
 
                             <div>
-                                <h3 className="text-lg font-semibold mb-3 text-amber-400">สัดส่วนรายรับ-รายจ่าย</h3>
-                                <IncomeExpenseBar 
-                                    income={analysis.monthlyChartData.income}
-                                    expense={analysis.monthlyChartData.expense}
-                                />
+                                <h3 className="text-lg font-semibold mb-3 text-fuchsia-400">สัดส่วนรายจ่าย</h3>
+                                <PieChart data={chartData.pieData} />
                             </div>
-                            
+
                             <div>
-                                <h3 className="text-lg font-semibold mb-2 text-red-400">หมวดหมู่รายจ่ายสูงสุด</h3>
-                                {analysis.topExpenseCategories.length > 0 ? (
-                                    <ul className="space-y-2">
-                                        {analysis.topExpenseCategories.map((item, index) => (
-                                            <li key={index} className="p-3 bg-red-900/50 rounded-lg">
-                                                <div className="flex justify-between items-center text-gray-300">
-                                                    <span>{item.category}</span>
-                                                    <span className="font-semibold">{item.amount.toLocaleString('th-TH')} บาท ({item.percentage}%)</span>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-gray-400">ไม่มีข้อมูลรายจ่าย</p>
+                                <h3 className="text-lg font-semibold mb-2 text-blue-400">AI วิเคราะห์ภาพรวม</h3>
+                                {loading && <LoadingSpinner />}
+                                {error && <p className="text-center text-red-500 mt-4">{error}</p>}
+                                {analysis && (
+                                    <div className="space-y-6">
+                                        <p className="bg-blue-900/50 p-4 rounded-lg text-gray-300">{analysis.summary}</p>
+                                        <div>
+                                            <h4 className="text-md font-semibold mb-2 text-green-400">คำแนะนำเพื่อการออม</h4>
+                                            <ul className="space-y-2">
+                                                {analysis.savingsSuggestions.map((item, index) => (
+                                                    <li key={index} className="p-3 bg-green-900/50 rounded-lg list-none text-gray-300">💡 {item}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2 text-green-400">คำแนะนำเพื่อการออม</h3>
-                                <ul className="space-y-2">
-                                    {analysis.savingsSuggestions.map((item, index) => (
-                                        <li key={index} className="p-3 bg-green-900/50 rounded-lg list-none text-gray-300">💡 {item}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
+                        </>
                     )}
                 </div>
             </div>

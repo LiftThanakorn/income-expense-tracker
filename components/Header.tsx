@@ -1,12 +1,13 @@
 import React from 'react';
-import { Cog6ToothIcon } from './Icons';
+import { Cog6ToothIcon, ChatBubbleLeftEllipsisIcon } from './Icons';
 
 interface HeaderProps {
     onOpenReport: () => void;
     onOpenSettings: () => void;
+    onOpenChat: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenReport, onOpenSettings }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenReport, onOpenSettings, onOpenChat }) => {
     return (
         <header className="sticky top-0 z-30 p-4 flex justify-between items-center shadow-md bg-gray-800">
             <h1 className="text-2xl font-bold text-gray-200">
@@ -19,11 +20,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenReport, onOpenSettings }) 
                 >
                     ดูรายงาน
                 </button>
-                <button
-                    onClick={onOpenSettings}
-                    className="p-2 rounded-full text-gray-400 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    aria-label="Settings"
-                >
+                <button onClick={onOpenChat} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-700" title="AI Assistant">
+                    <ChatBubbleLeftEllipsisIcon className="w-6 h-6" />
+                </button>
+                <button onClick={onOpenSettings} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-700" title="ตั้งค่า">
                     <Cog6ToothIcon className="w-6 h-6" />
                 </button>
             </div>

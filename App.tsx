@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
 import { TransactionList } from './components/TransactionList';
@@ -9,9 +10,22 @@ import { CategorySettingsModal } from './components/CategorySettingsModal';
 import { FilterControls } from './components/FilterControls';
 import { FloatingActionButton } from './components/FloatingActionButton';
 import { Toast, ToastProps } from './components/Toast';
+import { ChatModal } from './components/ChatModal';
+import { DateFilter } from './components/DateFilter';
+import { BudgetStatusList } from './components/BudgetStatusList';
 import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
+import { useBudgets } from './hooks/useBudgets';
 import { Transaction, TransactionType } from './types';
+import { getDateRanges } from './utility/dateUtils';
+
+type DateFilterKey = 'thisMonth' | 'thisWeek' | 'allTime';
+
+const dateFilterLabels: Record<DateFilterKey, string> = {
+    thisMonth: 'เดือนนี้',
+    thisWeek: 'สัปดาห์นี้',
+    allTime: 'ทั้งหมด'
+};
 
 function App() {
     // Hooks
@@ -20,27 +34,33 @@ function App() {
         addTransaction, 
         updateTransaction, 
         deleteTransaction, 
-        income, 
-        expense,
         loading: transactionsLoading,
     } = useTransactions();
-    const { 
-        categories, 
-        addCategory, 
-        deleteCategory,
-    } = useCategories();
+    const { categories, addCategory, deleteCategory } = useCategories();
+    const { budgets, upsertBudget } = useBudgets();
 
     // Modal States
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isImportSlipModalOpen, setIsImportSlipModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [isChatModalOpen, setIsChatModalOpen] = useState(false);
 
     // Editing State
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
 
-    // Filter State
+    // Filter States
     const [filter, setFilter] = useState<{ type: 'all' | TransactionType }>({ type: 'all' });
+    const [dateFilterKey, setDateFilterKey] = useState<DateFilterKey>('thisMonth');
+    const [dateRange, setDateRange] = useState(getDateRanges().thisMonth);
+
+    useEffect(() => {
+        if (dateFilterKey === 'allTime') {
+            setDateRange({ start: new Date(0), end: new Date() });
+        } else {
+            setDateRange(getDateRanges()[dateFilterKey]);
+        }
+    }, [dateFilterKey]);
 
     // Toast State
     const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
@@ -48,6 +68,30 @@ function App() {
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
     };
+
+    // Filtered Data
+    const dateFilteredTransactions = useMemo(() => {
+        return transactions.filter(t => {
+            const txDate = new Date(t.createdAt);
+            return txDate >= dateRange.start && txDate <= dateRange.end;
+        });
+    }, [transactions, dateRange]);
+
+    const finalFilteredTransactions = useMemo(() => {
+        if (filter.type === 'all') {
+            return dateFilteredTransactions;
+        }
+        return dateFilteredTransactions.filter(t => t.type === filter.type);
+    }, [dateFilteredTransactions, filter]);
+
+    const { income, expense } = useMemo(() => {
+        return dateFilteredTransactions.reduce((acc, t) => {
+            if (t.type === TransactionType.INCOME) acc.income += t.amount;
+            else acc.expense += t.amount;
+            return acc;
+        }, { income: 0, expense: 0 });
+    }, [dateFilteredTransactions]);
+
 
     // Handlers
     const handleAddClick = () => {
@@ -77,7 +121,6 @@ function App() {
                 await updateTransaction(transaction as Transaction);
                 showToast('อัปเดตรายการสำเร็จ', 'success');
             } else {
-                // Remove id and createdAt if they are empty, for new transactions from slip analysis
                 const newTransaction = { ...transaction };
                 delete (newTransaction as any).id;
                 delete (newTransaction as any).createdAt;
@@ -92,10 +135,9 @@ function App() {
     };
     
     const handleSlipAnalyzed = (analyzedData: Omit<Transaction, 'id' | 'createdAt'>) => {
-        // Open the Add/Edit modal pre-filled with slip data for user confirmation.
         const newTransactionForEdit = {
             ...analyzedData,
-            id: '', // dummy id for the modal to know it's a new item
+            id: '',
             createdAt: new Date().toISOString()
         };
         setTransactionToEdit(newTransactionForEdit as any);
@@ -123,28 +165,40 @@ function App() {
         }
     };
 
-    const filteredTransactions = useMemo(() => {
-        if (filter.type === 'all') {
-            return transactions;
+    const handleUpsertBudget = async (category: string, amount: number) => {
+        try {
+            await upsertBudget({ category, amount });
+            showToast('บันทึกงบประมาณสำเร็จ', 'success');
+        } catch (error) {
+             showToast('เกิดข้อผิดพลาดในการบันทึกงบประมาณ', 'error');
         }
-        return transactions.filter(t => t.type === filter.type);
-    }, [transactions, filter]);
+    };
 
     return (
         <div className="bg-gray-900 min-h-screen text-gray-100 font-sans">
             <Header 
                 onOpenReport={() => setIsReportModalOpen(true)} 
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
+                onOpenChat={() => setIsChatModalOpen(true)}
             />
             
             <main className="container mx-auto p-4 md:p-6">
                 <SummaryCards income={income} expense={expense} />
                 
-                <div className="flex justify-between items-center my-6">
-                    <h2 className="text-xl font-bold text-gray-200">ประวัติรายการ</h2>
+                <BudgetStatusList 
+                    budgets={budgets} 
+                    transactions={dateFilteredTransactions} 
+                    title={`สถานะงบประมาณ (${dateFilterLabels[dateFilterKey]})`}
+                />
+
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center my-6 gap-4">
+                    <div className="flex-grow">
+                        <h2 className="text-xl font-bold text-gray-200">ประวัติรายการ</h2>
+                        <DateFilter currentFilter={dateFilterKey} onFilterChange={setDateFilterKey} />
+                    </div>
                     <button
                         onClick={() => setIsImportSlipModalOpen(true)}
-                        className="px-4 py-2 text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                        className="px-4 py-2 text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 self-end md:self-center"
                     >
                         นำเข้าสลิป
                     </button>
@@ -156,7 +210,7 @@ function App() {
                     <p className="text-center py-10">กำลังโหลดข้อมูลธุรกรรม...</p>
                 ) : (
                     <TransactionList 
-                        transactions={filteredTransactions} 
+                        transactions={finalFilteredTransactions} 
                         onEdit={handleEditClick}
                         onDelete={handleDeleteClick}
                         onAddTransaction={handleAddClick}
@@ -180,7 +234,7 @@ function App() {
             <ReportModal 
                 isOpen={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}
-                transactions={transactions}
+                transactions={dateFilteredTransactions}
             />
 
             <ImportSlipModal
@@ -194,8 +248,16 @@ function App() {
                 isOpen={isSettingsModalOpen}
                 onClose={() => setIsSettingsModalOpen(false)}
                 categories={categories}
+                budgets={budgets}
                 onAddCategory={handleAddCategory}
                 onDeleteCategory={handleDeleteCategory}
+                onUpsertBudget={handleUpsertBudget}
+            />
+
+            <ChatModal
+                isOpen={isChatModalOpen}
+                onClose={() => setIsChatModalOpen(false)}
+                transactions={transactions}
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

@@ -1,23 +1,33 @@
-import React, { useState, useMemo } from 'react';
-import { Category, TransactionType } from '../types';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { Category, TransactionType, Budget } from '../types';
 import { PlusIcon, TrashIcon } from './Icons';
 
 interface CategorySettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     categories: Category[];
+    budgets: Budget[];
     onAddCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
     onDeleteCategory: (id: string) => Promise<void>;
+    onUpsertBudget: (category: string, amount: number) => Promise<void>;
 }
 
 const CategoryList: React.FC<{
     title: string;
     type: TransactionType;
     categories: Category[];
+    budgets: { [key: string]: number };
     onAddCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
     onDeleteCategory: (id: string) => Promise<void>;
-}> = ({ title, type, categories, onAddCategory, onDeleteCategory }) => {
+    onBudgetChange: (category: string, amount: number) => void;
+}> = ({ title, type, categories, budgets, onAddCategory, onDeleteCategory, onBudgetChange }) => {
     const [newCategoryName, setNewCategoryName] = useState('');
+    const [localBudgets, setLocalBudgets] = useState(budgets);
+
+    useEffect(() => {
+        setLocalBudgets(budgets);
+    }, [budgets]);
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,17 +36,45 @@ const CategoryList: React.FC<{
             setNewCategoryName('');
         }
     };
+    
+    const handleBudgetInputChange = (category: string, value: string) => {
+        const amount = Number(value);
+        setLocalBudgets(prev => ({...prev, [category]: amount }));
+    };
+
+    const handleBudgetSave = (category: string) => {
+        const amount = localBudgets[category];
+        if (typeof amount === 'number') {
+            onBudgetChange(category, amount);
+        }
+    };
 
     return (
         <div>
             <h3 className={`text-lg font-semibold mb-2 ${type === 'income' ? 'text-green-400' : 'text-red-400'}`}>{title}</h3>
             <ul className="space-y-2 max-h-48 overflow-y-auto pr-2 mb-3">
                 {categories.map(cat => (
-                    <li key={cat.id} className="flex justify-between items-center p-2 bg-gray-700 rounded-md">
-                        <span className="text-gray-200">{cat.name}</span>
-                        <button onClick={() => onDeleteCategory(cat.id)} className="p-1 text-gray-500 hover:text-red-400">
-                            <TrashIcon className="w-4 h-4" />
-                        </button>
+                    <li key={cat.id} className="p-2 bg-gray-700 rounded-md">
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-200">{cat.name}</span>
+                            <button onClick={() => onDeleteCategory(cat.id)} className="p-1 text-gray-500 hover:text-red-400">
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                        {type === TransactionType.EXPENSE && (
+                             <div className="mt-2 flex items-center gap-2">
+                                <label htmlFor={`budget-${cat.id}`} className="text-sm text-gray-400">งบประมาณ:</label>
+                                <input
+                                    id={`budget-${cat.id}`}
+                                    type="number"
+                                    placeholder="0"
+                                    value={localBudgets[cat.name] || ''}
+                                    onChange={(e) => handleBudgetInputChange(cat.name, e.target.value)}
+                                    onBlur={() => handleBudgetSave(cat.name)}
+                                    className="w-full px-2 py-1 border border-gray-600 rounded-md shadow-sm bg-gray-600 text-gray-100 text-sm"
+                                />
+                             </div>
+                        )}
                     </li>
                 ))}
             </ul>
@@ -60,11 +98,18 @@ export const CategorySettingsModal: React.FC<CategorySettingsModalProps> = ({
     isOpen,
     onClose,
     categories,
+    budgets,
     onAddCategory,
     onDeleteCategory,
+    onUpsertBudget
 }) => {
     const incomeCategories = useMemo(() => categories.filter(c => c.type === TransactionType.INCOME), [categories]);
     const expenseCategories = useMemo(() => categories.filter(c => c.type === TransactionType.EXPENSE), [categories]);
+    const budgetMap = useMemo(() => budgets.reduce((acc, b) => {
+        acc[b.category] = b.amount;
+        return acc;
+    }, {} as { [key: string]: number }), [budgets]);
+
 
     if (!isOpen) return null;
 
@@ -72,7 +117,7 @@ export const CategorySettingsModal: React.FC<CategorySettingsModalProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
             <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl h-auto max-h-[90vh] p-6 flex flex-col modal" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-200">ตั้งค่าหมวดหมู่</h2>
+                    <h2 className="text-2xl font-bold text-gray-200">ตั้งค่าหมวดหมู่ & งบประมาณ</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>
                 </div>
                 
@@ -81,15 +126,19 @@ export const CategorySettingsModal: React.FC<CategorySettingsModalProps> = ({
                         title="หมวดหมู่รายรับ"
                         type={TransactionType.INCOME}
                         categories={incomeCategories}
+                        budgets={{}}
                         onAddCategory={onAddCategory}
                         onDeleteCategory={onDeleteCategory}
+                        onBudgetChange={() => {}}
                     />
                     <CategoryList
                         title="หมวดหมู่รายจ่าย"
                         type={TransactionType.EXPENSE}
                         categories={expenseCategories}
+                        budgets={budgetMap}
                         onAddCategory={onAddCategory}
                         onDeleteCategory={onDeleteCategory}
+                        onBudgetChange={onUpsertBudget}
                     />
                 </div>
                 

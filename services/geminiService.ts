@@ -2,20 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, TransactionType, Category } from '../types';
 
-// ====================================================================================
-// IMPORTANT FIX: For this specific "no-build" project architecture on Vercel,
-// reading from process.env is not possible. The API key must be placed here directly.
-// This is not a secure practice for production apps, but it is the only way to
-// make this specific setup work.
-// ====================================================================================
-const API_KEY = "AIzaSyCEA0rxnPZHvE0tWmGTdLi9Z9R57GYcfcY";
-
-if (!API_KEY) {
-    // This check is kept as a safeguard, but with a hardcoded key, it should not be triggered.
-    throw new Error("Gemini API Key is not set in services/geminiService.ts");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 
 const analysisSchema = {

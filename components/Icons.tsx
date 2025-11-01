@@ -51,6 +51,12 @@ export const Cog6ToothIcon: React.FC<{ className?: string }> = ({ className }) =
     </svg>
 );
 
+export const ChatBubbleLeftEllipsisIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg {...iconProps} className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.76 9.76 0 0 1-2.53-.388m-5.168-4.48a9.76 9.76 0 0 1-2.53-.388m-5.168 4.48A9.755 9.755 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+    </svg>
+);
+
 export const SunIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg {...iconProps} className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />

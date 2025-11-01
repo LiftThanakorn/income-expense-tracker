@@ -19,3 +19,10 @@ export interface Category {
     type: TransactionType;
     created_at: string;
 }
+
+export interface Budget {
+    id: string;
+    category: string;
+    amount: number;
+    created_at: string;
+}
