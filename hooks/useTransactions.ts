@@ -2,6 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Transaction, TransactionType } from '../types';
 
+// Helper to map DB snake_case to app camelCase, ensuring data consistency.
+const mapTransactionFromDb = (dbTransaction: any): Transaction => ({
+    id: dbTransaction.id,
+    type: dbTransaction.type,
+    category: dbTransaction.category,
+    amount: dbTransaction.amount,
+    note: dbTransaction.note,
+    createdAt: dbTransaction.created_at,
+});
+
+
 export function useTransactions() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
@@ -19,7 +30,7 @@ export function useTransactions() {
             if (error) {
                 throw error;
             }
-            setTransactions(data as Transaction[]);
+            setTransactions(data ? data.map(mapTransactionFromDb) : []);
         } catch (e: any) {
             setError(e.message || 'Failed to fetch transactions');
             console.error(e);
@@ -34,13 +45,9 @@ export function useTransactions() {
 
     const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
         try {
-            const newTransaction = {
-                ...transaction,
-                // Supabase client maps camelCase to snake_case automatically on insert
-            };
             const { data, error } = await supabase
                 .from('transactions')
-                .insert([newTransaction])
+                .insert([transaction])
                 .select();
             
             if (error) {
@@ -48,7 +55,7 @@ export function useTransactions() {
             }
             
             if (data) {
-                setTransactions(prev => [data[0] as Transaction, ...prev]);
+                setTransactions(prev => [mapTransactionFromDb(data[0]), ...prev]);
             }
             return data;
         } catch (e: any) {
@@ -60,10 +67,11 @@ export function useTransactions() {
 
     const updateTransaction = async (transaction: Transaction) => {
         try {
+            const { id, createdAt, ...updatePayload } = transaction;
             const { data, error } = await supabase
                 .from('transactions')
-                .update(transaction)
-                .eq('id', transaction.id)
+                .update(updatePayload)
+                .eq('id', id)
                 .select();
 
             if (error) {
@@ -71,7 +79,8 @@ export function useTransactions() {
             }
             
             if (data) {
-                setTransactions(prev => prev.map(t => (t.id === transaction.id ? data[0] as Transaction : t)));
+                const updatedTx = mapTransactionFromDb(data[0]);
+                setTransactions(prev => prev.map(t => (t.id === updatedTx.id ? updatedTx : t)));
             }
             return data;
         } catch (e: any) {

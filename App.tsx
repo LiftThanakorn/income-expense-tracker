@@ -51,7 +51,7 @@ function App() {
 
     // Filter States
     const [filter, setFilter] = useState<{ type: 'all' | TransactionType }>({ type: 'all' });
-    const [dateFilterKey, setDateFilterKey] = useState<DateFilterKey>('thisMonth');
+    const [dateFilterKey, setDateFilterKey] = useState<DateFilterKey>('allTime');
     const [dateRange, setDateRange] = useState(getDateRanges().thisMonth);
 
     useEffect(() => {
