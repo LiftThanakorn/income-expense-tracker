@@ -52,7 +52,7 @@ export const analyzeSpending = async (transactions: Transaction[]) => {
         };
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.VITE_API_KEY });
 
     const prompt = `
         วิเคราะห์ข้อมูลรายรับรายจ่ายต่อไปนี้ และให้ผลลัพธ์เป็น JSON ภาษาไทย
@@ -80,7 +80,7 @@ export const analyzeSpending = async (transactions: Transaction[]) => {
 };
 
 export const analyzeSlip = async (base64Image: string, mimeType: string, categories: Category[]): Promise<Omit<Transaction, 'id' | 'createdAt'>> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.VITE_API_KEY });
     const incomeCategories = categories.filter(c => c.type === 'income').map(c => c.name);
     const expenseCategories = categories.filter(c => c.type === 'expense').map(c => c.name);
     const allCategoryNames = categories.map(c => c.name);
