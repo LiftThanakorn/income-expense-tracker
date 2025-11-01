@@ -52,15 +52,6 @@ function App() {
     // Filter States
     const [filter, setFilter] = useState<{ type: 'all' | TransactionType }>({ type: 'all' });
     const [dateFilterKey, setDateFilterKey] = useState<DateFilterKey>('allTime');
-    const [dateRange, setDateRange] = useState(getDateRanges().thisMonth);
-
-    useEffect(() => {
-        if (dateFilterKey === 'allTime') {
-            setDateRange({ start: new Date(0), end: new Date() });
-        } else {
-            setDateRange(getDateRanges()[dateFilterKey]);
-        }
-    }, [dateFilterKey]);
 
     // Toast State
     const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
@@ -71,11 +62,15 @@ function App() {
 
     // Filtered Data
     const dateFilteredTransactions = useMemo(() => {
+        if (dateFilterKey === 'allTime') {
+            return transactions; // Return all transactions without date filtering
+        }
+        const { start, end } = getDateRanges()[dateFilterKey];
         return transactions.filter(t => {
             const txDate = new Date(t.createdAt);
-            return txDate >= dateRange.start && txDate <= dateRange.end;
+            return txDate >= start && txDate <= end;
         });
-    }, [transactions, dateRange]);
+    }, [transactions, dateFilterKey]);
 
     const finalFilteredTransactions = useMemo(() => {
         if (filter.type === 'all') {
@@ -105,13 +100,36 @@ function App() {
     };
 
     const handleDeleteClick = async (id: string) => {
-        if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) {
-            try {
-                await deleteTransaction(id);
-                showToast('ลบรายการสำเร็จ', 'success');
-            } catch (error) {
-                showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+        console.log(`[App.tsx] User clicked delete for transaction ID: ${id}. Bypassing confirmation for debugging.`);
+    
+        try {
+            await deleteTransaction(id);
+            showToast('ลบรายการสำเร็จ', 'success');
+            console.log(`[App.tsx] Successfully processed deletion for ID: ${id}`);
+    
+        } catch (error) {
+            console.error("[App.tsx] Caught an error during delete operation:", error);
+    
+            // Create a more detailed error message for the user.
+            let errorMessage = 'เกิดข้อผิดพลาดที่ไม่สามารถระบุได้';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'object' && error !== null && 'message' in error) {
+                errorMessage = String((error as { message: string }).message);
+            } else {
+                try {
+                    errorMessage = JSON.stringify(error);
+                } catch {
+                    // Fallback if stringify fails
+                    errorMessage = String(error);
+                }
             }
+            
+            // The most important part for debugging with the user: a clear, unavoidable alert.
+            alert(`ไม่สามารถลบรายการได้:\n\n${errorMessage}`);
+            
+            // Also show a toast for better UX, but the alert is for debugging.
+            showToast('เกิดข้อผิดพลาดในการลบ', 'error');
         }
     };
 

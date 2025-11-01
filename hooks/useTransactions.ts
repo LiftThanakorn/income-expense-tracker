@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Transaction, TransactionType } from '../types';
+import { Transaction } from '../types';
 
 // Helper to map DB snake_case to app camelCase, ensuring data consistency.
 const mapTransactionFromDb = (dbTransaction: any): Transaction => ({
@@ -8,7 +8,7 @@ const mapTransactionFromDb = (dbTransaction: any): Transaction => ({
     type: dbTransaction.type,
     category: dbTransaction.category,
     amount: dbTransaction.amount,
-    note: dbTransaction.note,
+    note: dbTransaction.note || '', // Ensure note is always a string to match the type
     createdAt: dbTransaction.created_at,
 });
 
@@ -49,18 +49,15 @@ export function useTransactions() {
                 .from('transactions')
                 .insert([transaction])
                 .select();
-            
-            if (error) {
-                throw error;
-            }
-            
-            if (data) {
-                setTransactions(prev => [mapTransactionFromDb(data[0]), ...prev]);
-            }
-            return data;
+
+            if (error) throw error;
+            if (!data?.[0]) throw new Error("Failed to add transaction: No data returned.");
+
+            const newTransaction = mapTransactionFromDb(data[0]);
+            setTransactions(current => [newTransaction, ...current]);
+
         } catch (e: any) {
-            setError(e.message || 'Failed to add transaction');
-            console.error(e);
+            console.error("Error adding transaction:", e);
             throw e;
         }
     };
@@ -74,48 +71,61 @@ export function useTransactions() {
                 .eq('id', id)
                 .select();
 
-            if (error) {
-                throw error;
-            }
-            
-            if (data) {
-                const updatedTx = mapTransactionFromDb(data[0]);
-                setTransactions(prev => prev.map(t => (t.id === updatedTx.id ? updatedTx : t)));
-            }
-            return data;
+            if (error) throw error;
+            if (!data?.[0]) throw new Error(`Failed to update transaction: ID ${id} not found.`);
+
+            const updatedTransaction = mapTransactionFromDb(data[0]);
+            setTransactions(current => 
+                current.map(t => t.id === id ? updatedTransaction : t)
+            );
+
         } catch (e: any) {
-            setError(e.message || 'Failed to update transaction');
-            console.error(e);
+            console.error("Error updating transaction:", e);
             throw e;
         }
     };
 
     const deleteTransaction = async (id: string) => {
+        console.log(`[useTransactions] Attempting to delete transaction with ID: ${id}`);
+    
+        if (!id || typeof id !== 'string') {
+            const error = new Error('ID ที่ระบุสำหรับลบข้อมูลไม่ถูกต้อง');
+            console.error('[useTransactions] Delete failed:', error);
+            throw error;
+        }
+    
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('transactions')
                 .delete()
-                .eq('id', id);
-
+                .eq('id', id)
+                .select(); // Ask Supabase to return the deleted row(s) for confirmation
+    
             if (error) {
+                console.error('[useTransactions] Supabase returned an error during deletion:', error);
                 throw error;
             }
-            
-            setTransactions(prev => prev.filter(t => t.id !== id));
+    
+            if (!data || data.length === 0) {
+                const notFoundError = new Error(`ไม่พบรายการที่ต้องการลบ (ID: ${id}) ในฐานข้อมูล อาจถูกลบไปแล้ว`);
+                console.warn('[useTransactions] Delete operation completed, but no rows were affected.', notFoundError);
+                throw notFoundError;
+            }
+    
+            console.log('[useTransactions] Successfully deleted transaction. Response data:', data);
+    
+            // Update local state for immediate UI response
+            setTransactions(currentTransactions =>
+                currentTransactions.filter(transaction => transaction.id !== id)
+            );
+    
         } catch (e: any) {
-            setError(e.message || 'Failed to delete transaction');
-            console.error(e);
+            // This catches errors from the checks above or any other unexpected errors.
+            console.error('[useTransactions] An exception occurred in deleteTransaction:', e);
+            // Re-throw the error so the calling component can handle it.
             throw e;
         }
     };
-
-    const income = transactions
-        .filter(t => t.type === TransactionType.INCOME)
-        .reduce((sum, t) => sum + t.amount, 0);
-
-    const expense = transactions
-        .filter(t => t.type === TransactionType.EXPENSE)
-        .reduce((sum, t) => sum + t.amount, 0);
 
     return {
         transactions,
@@ -125,7 +135,5 @@ export function useTransactions() {
         addTransaction,
         updateTransaction,
         deleteTransaction,
-        income,
-        expense
     };
 }
