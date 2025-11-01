@@ -173,13 +173,21 @@ function App() {
     };
 
     const handleDeleteCategory = async (id: string) => {
-        if (window.confirm('การลบหมวดหมู่จะทำให้รายการที่เกี่ยวข้องไม่มีหมวดหมู่ คุณแน่ใจหรือไม่?')) {
-            try {
-                await deleteCategory(id);
-                showToast('ลบหมวดหมู่สำเร็จ', 'success');
-            } catch (error) {
-                showToast('เกิดข้อผิดพลาดในการลบหมวดหมู่', 'error');
+        try {
+            await deleteCategory(id);
+            showToast('ลบหมวดหมู่สำเร็จ', 'success');
+        } catch (error) {
+            console.error("[App.tsx] Caught an error during category delete operation:", error);
+    
+            let errorMessage = 'เกิดข้อผิดพลาดที่ไม่สามารถระบุได้';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'object' && error !== null && 'message' in error) {
+                errorMessage = String((error as { message: string }).message);
             }
+            
+            alert(`ไม่สามารถลบหมวดหมู่ได้:\n\n${errorMessage}`);
+            showToast('เกิดข้อผิดพลาดในการลบหมวดหมู่', 'error');
         }
     };
 

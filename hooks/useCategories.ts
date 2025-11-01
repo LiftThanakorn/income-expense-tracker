@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Category } from '../types';
@@ -51,18 +52,54 @@ export function useCategories() {
     };
 
     const deleteCategory = async (id: string) => {
+        if (!id || typeof id !== 'string') {
+            const error = new Error('ID ที่ระบุสำหรับลบหมวดหมู่ไม่ถูกต้อง');
+            console.error('[useCategories] Delete failed:', error);
+            throw error;
+        }
+    
         try {
-            const { error } = await supabase
+            const categoryToDelete = categories.find(c => c.id === id);
+            if (!categoryToDelete) {
+                throw new Error(`ไม่พบหมวดหมู่ที่ต้องการลบในรายการปัจจุบัน (ID: ${id})`);
+            }
+
+            const { data: budgetsData, error: budgetError } = await supabase
+                .from('budgets')
+                .select('amount')
+                .eq('category', categoryToDelete.name)
+                .limit(1);
+
+            if (budgetError) {
+                console.error('[useCategories] Error checking for budgets:', budgetError);
+                throw new Error('เกิดข้อผิดพลาดในการตรวจสอบงบประมาณที่เกี่ยวข้อง');
+            }
+
+            if (budgetsData && budgetsData.length > 0 && budgetsData[0].amount > 0) {
+                throw new Error(`ไม่สามารถลบหมวดหมู่ '${categoryToDelete.name}' ได้ เนื่องจากมีการตั้งงบประมาณไว้ กรุณาตั้งค่าให้เป็น 0 ก่อน`);
+            }
+            
+            const { data, error } = await supabase
                 .from('categories')
                 .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-            
+                .eq('id', id)
+                .select();
+    
+            if (error) {
+                console.error('[useCategories] Supabase returned an error during deletion:', error);
+                throw error;
+            }
+    
+            if (!data || data.length === 0) {
+                console.warn(`[useCategories] Category with ID: ${id} not found in database for deletion, but will be removed from local state.`);
+            } else {
+                 console.log('[useCategories] Successfully deleted category. Response data:', data);
+            }
+    
             setCategories(prev => prev.filter(c => c.id !== id));
+
         } catch (e: any) {
-            setError(e.message || 'Failed to delete category');
-            console.error(e);
+            console.error('[useCategories] An exception occurred in deleteCategory:', e);
             throw e;
         }
     };
