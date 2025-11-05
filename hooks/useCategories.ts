@@ -30,15 +30,21 @@ export function useCategories(userId: string) {
         if (!userId) throw new Error("User not logged in.");
         try {
             const categoriesWithUser = defaultCategories.map(cat => ({ ...cat, user_id: userId }));
+            // Use upsert to prevent race conditions from causing duplicate key errors.
+            // This makes the operation idempotent and relies on the unique constraint 
+            // being correctly set on (user_id, name, type).
             const { data, error } = await supabase
                 .from('categories')
-                .insert(categoriesWithUser)
+                .upsert(categoriesWithUser, { onConflict: 'user_id,name,type' })
                 .select();
             
             if (error) throw error;
             return data || [];
         } catch (e: any) {
             console.error("Failed to add default categories:", e);
+            if (e.message?.includes('constraint')) {
+                 console.error("Database schema error suspected. Please ensure the unique constraint on the 'categories' table is set to (user_id, name, type).");
+            }
             throw e;
         }
     }, [userId]);
