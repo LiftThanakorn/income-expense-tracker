@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Category, TransactionType } from '../types';
@@ -28,6 +26,23 @@ export function useCategories(userId: string) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const addDefaultCategories = useCallback(async () => {
+        if (!userId) throw new Error("User not logged in.");
+        try {
+            const categoriesWithUser = defaultCategories.map(cat => ({ ...cat, user_id: userId }));
+            const { data, error } = await supabase
+                .from('categories')
+                .insert(categoriesWithUser)
+                .select();
+            
+            if (error) throw error;
+            return data || [];
+        } catch (e: any) {
+            console.error("Failed to add default categories:", e);
+            throw e;
+        }
+    }, [userId]);
+
     const fetchCategories = useCallback(async () => {
         if (!userId) return;
         setLoading(true);
@@ -40,14 +55,21 @@ export function useCategories(userId: string) {
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
-            setCategories(data as Category[]);
+            
+            if (data && data.length === 0) {
+                // This is a new user, add default categories.
+                const newCategories = await addDefaultCategories();
+                setCategories(newCategories as Category[]);
+            } else {
+                setCategories(data as Category[]);
+            }
         } catch (e: any) {
-            setError(e.message || 'Failed to fetch categories');
+            setError(e.message || 'Failed to initialize categories');
             console.error(e);
         } finally {
             setLoading(false);
         }
-    }, [userId]);
+    }, [userId, addDefaultCategories]);
 
     useEffect(() => {
         fetchCategories();
@@ -70,28 +92,6 @@ export function useCategories(userId: string) {
             return data;
         } catch (e: any) {
             setError(e.message || 'Failed to add category');
-            console.error(e);
-            throw e;
-        }
-    };
-
-    const addDefaultCategories = async () => {
-        if (!userId) throw new Error("User not logged in.");
-        try {
-            const categoriesWithUser = defaultCategories.map(cat => ({ ...cat, user_id: userId }));
-            const { data, error } = await supabase
-                .from('categories')
-                .insert(categoriesWithUser)
-                .select();
-            
-            if (error) throw error;
-            
-            if (data) {
-                setCategories(prev => [...(data as Category[]), ...prev]);
-            }
-            return data;
-        } catch (e: any) {
-            setError(e.message || 'Failed to add default categories');
             console.error(e);
             throw e;
         }
@@ -159,6 +159,5 @@ export function useCategories(userId: string) {
         error,
         addCategory,
         deleteCategory,
-        addDefaultCategories
     };
 }
