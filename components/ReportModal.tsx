@@ -71,27 +71,34 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             return { pieData: [], lineData: [] };
         }
 
-        // FIX: Type the initial value of the reduce function to avoid compilation errors with generic type arguments.
+        // FIX: Explicitly type the accumulator in the `reduce` function. Without this,
+        // TypeScript infers `acc` as `{}`, which leads to errors on property access and arithmetic operations.
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
             .reduce((acc: Record<string, number>, t) => {
                 acc[t.category] = (acc[t.category] || 0) + t.amount;
                 return acc;
-            }, {} as Record<string, number>);
+            }, {});
 
         const pieData = Object.entries(expenseByCategory)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
-        // FIX: Type the initial value of the reduce function to correctly type the accumulator and resolve property access errors.
+        // FIX: Explicitly type the accumulator in the `reduce` function to resolve type inference issues.
+        // This ensures `dataByDay` has a known structure, allowing `Object.values` to return a correctly typed array,
+        // which in turn fixes the "property 'date' does not exist" error in the subsequent `sort` function.
         const dataByDay = transactions.reduce((acc: Record<string, { date: string, income: number, expense: number }>, t) => {
             const day = new Date(t.createdAt).toISOString().split('T')[0];
             if (!acc[day]) {
                 acc[day] = { date: day, income: 0, expense: 0 };
             }
-            acc[day][t.type] += t.amount;
+            if (t.type === TransactionType.INCOME) {
+                acc[day].income += t.amount;
+            } else {
+                acc[day].expense += t.amount;
+            }
             return acc;
-        }, {} as Record<string, { date: string, income: number, expense: number }>);
+        }, {});
         
         const lineData = Object.values(dataByDay)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -104,12 +111,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
 
     return (
         <div 
-            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0 pointer-events-none'}`} 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-in-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0 pointer-events-none'}`} 
             onClick={onClose}
             onTransitionEnd={handleAnimationEnd}
         >
             <div 
-                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[800px] p-6 flex flex-col modal transition-all duration-300 ease-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[800px] p-6 flex flex-col modal transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex justify-between items-center mb-4">

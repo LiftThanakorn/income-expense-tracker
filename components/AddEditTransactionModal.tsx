@@ -92,12 +92,12 @@ export const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = (
 
     return (
         <div 
-            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0 pointer-events-none'}`} 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-in-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0 pointer-events-none'}`} 
             onClick={onClose}
             onTransitionEnd={handleAnimationEnd}
         >
             <div 
-                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4 transition-all duration-300 ease-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`} 
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4 transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`} 
                 onClick={e => e.stopPropagation()}
             >
                 <h2 className="text-2xl font-bold mb-6 text-gray-200">

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PlusIcon, ChatBubbleLeftEllipsisIcon, ArrowUpTrayIcon, PencilIcon } from './Icons';
+import { PlusIcon, SparklesIcon, ArrowUpTrayIcon, PencilIcon } from './Icons';
 
 interface FloatingActionMenuProps {
     onAddTransaction: () => void;
@@ -59,7 +59,7 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onAddTra
                          <ArrowUpTrayIcon className="w-7 h-7" />
                     </ActionButton>
                     <ActionButton onClick={createHandler(onOpenChat)} label="AI Assistant">
-                         <ChatBubbleLeftEllipsisIcon className="w-7 h-7" />
+                         <SparklesIcon className="w-7 h-7" />
                     </ActionButton>
                     <ActionButton onClick={createHandler(onAddTransaction)} label="เพิ่มรายการ">
                          <PencilIcon className="w-7 h-7" />
