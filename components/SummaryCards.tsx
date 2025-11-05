@@ -1,39 +1,40 @@
-
-import React from 'react';
-import { ArrowDownIcon, ArrowUpIcon } from './Icons';
+import React, { useMemo } from 'react';
+import { Transaction, TransactionType } from '../types';
 
 interface SummaryCardsProps {
-    income: number;
-    expense: number;
+    transactions: Transaction[];
 }
 
-const SummaryCard: React.FC<{ title: string; amount: number; type: 'income' | 'expense' }> = ({ title, amount, type }) => {
-    const isIncome = type === 'income';
-    const bgColor = isIncome ? 'bg-green-900/50' : 'bg-red-900/50';
-    const textColor = isIncome ? 'text-green-400' : 'text-red-400';
-    const iconColor = isIncome ? 'text-green-500' : 'text-red-500';
-    const Icon = isIncome ? ArrowUpIcon : ArrowDownIcon;
+const StatCard: React.FC<{ title: string; amount: number; color: string }> = ({ title, amount, color }) => (
+    <div className="bg-gray-800 p-6 rounded-2xl shadow-lg">
+        <h3 className="text-sm font-medium text-gray-400">{title}</h3>
+        <p className={`text-3xl font-bold mt-2 ${color}`}>
+            {amount.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
+        </p>
+    </div>
+);
+
+export const SummaryCards: React.FC<SummaryCardsProps> = ({ transactions }) => {
+    const { income, expense, balance } = useMemo(() => {
+        return transactions.reduce(
+            (acc, transaction) => {
+                if (transaction.type === TransactionType.INCOME) {
+                    acc.income += transaction.amount;
+                } else {
+                    acc.expense += transaction.amount;
+                }
+                acc.balance = acc.income - acc.expense;
+                return acc;
+            },
+            { income: 0, expense: 0, balance: 0 }
+        );
+    }, [transactions]);
 
     return (
-        <div className={`rounded-xl p-4 flex items-center gap-4 shadow ${bgColor}`}>
-            <div className={`p-2 rounded-full ${iconColor} bg-gray-800`}>
-                <Icon className="w-6 h-6" />
-            </div>
-            <div>
-                <p className="text-gray-400">{title}</p>
-                <p className={`text-2xl font-bold ${textColor}`}>
-                    {amount.toLocaleString('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 0 })}
-                </p>
-            </div>
-        </div>
-    );
-};
-
-export const SummaryCards: React.FC<SummaryCardsProps> = ({ income, expense }) => {
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-            <SummaryCard title="รายรับ" amount={income} type="income" />
-            <SummaryCard title="รายจ่าย" amount={expense} type="expense" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
+            <StatCard title="รายรับ" amount={income} color="text-green-400" />
+            <StatCard title="รายจ่าย" amount={expense} color="text-red-400" />
+            <StatCard title="คงเหลือ" amount={balance} color="text-blue-400" />
         </div>
     );
 };

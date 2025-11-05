@@ -1,223 +1,193 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './services/supabaseClient';
 import { Auth } from './components/Auth';
 import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
 import { TransactionList } from './components/TransactionList';
 import { AddEditTransactionModal } from './components/AddEditTransactionModal';
-import { ReportModal } from './components/ReportModal';
-import { ImportSlipModal } from './components/ImportSlipModal';
-import { CategorySettingsModal } from './components/CategorySettingsModal';
-import { FilterControls } from './components/FilterControls';
 import { FloatingActionButton } from './components/FloatingActionButton';
-import { Toast, ToastProps } from './components/Toast';
+import { ReportModal } from './components/ReportModal';
+import { CategorySettingsModal } from './components/CategorySettingsModal';
 import { ChatModal } from './components/ChatModal';
+import { ImportSlipModal } from './components/ImportSlipModal';
+import { FilterControls } from './components/FilterControls';
 import { DateFilter } from './components/DateFilter';
 import { BudgetStatusList } from './components/BudgetStatusList';
 import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
 import { useBudgets } from './hooks/useBudgets';
-import { Transaction, TransactionType } from './types';
+import { Transaction, TransactionType, Category, Budget } from './types';
+import { Toast, ToastProps } from './components/Toast';
 import { getDateRanges } from './utility/dateUtils';
 
 type DateFilterKey = 'thisMonth' | 'thisWeek' | 'allTime';
 
-const dateFilterLabels: Record<DateFilterKey, string> = {
-    thisMonth: 'เดือนนี้',
-    thisWeek: 'สัปดาห์นี้',
-    allTime: 'ทั้งหมด'
-};
+const App: React.FC = () => {
+    const [session, setSession] = useState<Session | null>(null);
+    const user = session?.user;
 
-const MainAppContent: React.FC<{ user: User }> = ({ user }) => {
-    // Hooks
-    const { 
-        transactions, 
-        addTransaction, 
-        updateTransaction, 
-        deleteTransaction, 
-        loading: transactionsLoading,
-    } = useTransactions(user.id);
-    const { 
-        categories, 
-        addCategory, 
-        deleteCategory, 
-        loading: categoriesLoading 
-    } = useCategories(user.id);
-    const { budgets, upsertBudget } = useBudgets(user.id);
+    // State for modals
+    const [isAddEditModalOpen, setAddEditModalOpen] = useState(false);
+    const [isReportModalOpen, setReportModalOpen] = useState(false);
+    const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
+    const [isChatModalOpen, setChatModalOpen] = useState(false);
+    const [isImportSlipModalOpen, setImportSlipModalOpen] = useState(false);
 
-    // Modal States
-    const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
-    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [isImportSlipModalOpen, setIsImportSlipModalOpen] = useState(false);
-    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-    const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-
-    // Editing State
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
-
-    // Filter States
-    const [filter, setFilter] = useState<{ type: 'all' | TransactionType }>({ type: 'all' });
-    const [dateFilterKey, setDateFilterKey] = useState<DateFilterKey>('allTime');
-
-    // Toast State
     const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
 
-    const showToast = (message: string, type: 'success' | 'error') => {
-        setToast({ message, type });
-    };
+    // Filters
+    const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>('all');
+    const [dateFilter, setDateFilter] = useState<DateFilterKey>('thisMonth');
 
-    // Filtered Data
-    const dateFilteredTransactions = useMemo(() => {
-        if (dateFilterKey === 'allTime') {
-            return transactions; // Return all transactions without date filtering
-        }
-        const { start, end } = getDateRanges()[dateFilterKey];
-        return transactions.filter(t => {
-            const txDate = new Date(t.createdAt);
-            return txDate >= start && txDate <= end;
+    // Hooks
+    const { transactions, addTransaction, updateTransaction, deleteTransaction, loading: transactionsLoading } = useTransactions(user?.id ?? '');
+    const { categories, addCategory, deleteCategory, loading: categoriesLoading } = useCategories(user?.id ?? '');
+    const { budgets, upsertBudget, loading: budgetsLoading } = useBudgets(user?.id ?? '');
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
         });
-    }, [transactions, dateFilterKey]);
 
-    const finalFilteredTransactions = useMemo(() => {
-        if (filter.type === 'all') {
-            return dateFilteredTransactions;
-        }
-        return dateFilteredTransactions.filter(t => t.type === filter.type);
-    }, [dateFilteredTransactions, filter]);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
 
-    const { income, expense } = useMemo(() => {
-        return dateFilteredTransactions.reduce((acc, t) => {
-            if (t.type === TransactionType.INCOME) acc.income += t.amount;
-            else acc.expense += t.amount;
-            return acc;
-        }, { income: 0, expense: 0 });
-    }, [dateFilteredTransactions]);
+        return () => subscription.unsubscribe();
+    }, []);
 
-
-    // Handlers
     const handleAddClick = () => {
         setTransactionToEdit(null);
-        setIsAddEditModalOpen(true);
+        setAddEditModalOpen(true);
     };
 
     const handleEditClick = (transaction: Transaction) => {
         setTransactionToEdit(transaction);
-        setIsAddEditModalOpen(true);
+        setAddEditModalOpen(true);
     };
 
     const handleDeleteClick = async (id: string) => {
-        try {
-            await deleteTransaction(id);
-            showToast('ลบรายการสำเร็จ', 'success');
-        } catch (error) {
-            console.error("[App.tsx] Caught an error during delete operation:", error);
-            const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่รู้จัก';
-            alert(`ไม่สามารถลบรายการได้:\n\n${errorMessage}`);
-            showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+        if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?')) {
+            try {
+                await deleteTransaction(id);
+                setToast({ message: 'ลบรายการสำเร็จ', type: 'success' });
+            } catch (error: any) {
+                console.error(error);
+                setToast({ message: error.message || 'เกิดข้อผิดพลาดในการลบ', type: 'error' });
+            }
         }
     };
 
     const handleSaveTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'> | Transaction) => {
         try {
-            if ('id' in transaction && transaction.id) {
-                await updateTransaction(transaction as Transaction);
-                showToast('อัปเดตรายการสำเร็จ', 'success');
+            if ('id' in transaction) {
+                await updateTransaction(transaction);
+                setToast({ message: 'อัปเดตรายการสำเร็จ', type: 'success' });
             } else {
-                await addTransaction(transaction as Omit<Transaction, 'id' | 'createdAt'>);
-                showToast('เพิ่มรายการสำเร็จ', 'success');
+                await addTransaction(transaction);
+                setToast({ message: 'เพิ่มรายการสำเร็จ', type: 'success' });
             }
-            setIsAddEditModalOpen(false);
-            setTransactionToEdit(null);
-        } catch (error) {
-            showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+        } catch (error: any) {
+            console.error(error);
+            setToast({ message: error.message || 'เกิดข้อผิดพลาดในการบันทึก', type: 'error' });
         }
     };
     
-    const handleSlipAnalyzed = (analyzedData: Omit<Transaction, 'id' | 'createdAt'>) => {
-        const newTransactionForEdit = {
-            ...analyzedData,
-            id: '',
-            createdAt: new Date().toISOString()
-        };
-        setTransactionToEdit(newTransactionForEdit as any);
-        setIsImportSlipModalOpen(false);
-        setIsAddEditModalOpen(true);
-    };
-    
-    const handleAddCategory = async (category: Omit<any, 'id' | 'created_at'>) => {
+    const handleAddCategory = async (category: Omit<Category, 'id' | 'created_at'>) => {
         try {
             await addCategory(category);
-            showToast('เพิ่มหมวดหมู่สำเร็จ', 'success');
-        } catch (error) {
-            showToast('เกิดข้อผิดพลาดในการเพิ่มหมวดหมู่', 'error');
+            setToast({ message: 'เพิ่มหมวดหมู่สำเร็จ', type: 'success' });
+        } catch (error: any) {
+            setToast({ message: error.message || 'ชื่อหมวดหมู่นี้มีอยู่แล้ว', type: 'error' });
         }
     };
 
     const handleDeleteCategory = async (id: string) => {
-        try {
-            await deleteCategory(id);
-            showToast('ลบหมวดหมู่สำเร็จ', 'success');
-        } catch (error) {
-            console.error("[App.tsx] Caught an error during category delete operation:", error);
-            const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่รู้จัก';
-            alert(`ไม่สามารถลบหมวดหมู่ได้:\n\n${errorMessage}`);
-            showToast('เกิดข้อผิดพลาดในการลบหมวดหมู่', 'error');
-        }
-    };
-
-    const handleUpsertBudget = async (category: string, amount: number) => {
-        try {
-            await upsertBudget({ category, amount });
-            showToast('บันทึกงบประมาณสำเร็จ', 'success');
-        } catch (error) {
-             showToast('เกิดข้อผิดพลาดในการบันทึกงบประมาณ', 'error');
+        if (window.confirm('การลบหมวดหมู่จะไม่ลบรายการธุรกรรมที่ใช้หมวดหมู่นี้ไปแล้ว ยืนยันที่จะลบ?')) {
+            try {
+                await deleteCategory(id);
+                setToast({ message: 'ลบหมวดหมู่สำเร็จ', type: 'success' });
+            } catch (error: any) {
+                setToast({ message: error.message || 'เกิดข้อผิดพลาดในการลบ', type: 'error' });
+            }
         }
     };
     
-    const handleSignOut = async () => {
-        await supabase.auth.signOut();
+    const handleUpsertBudget = async (category: string, amount: number) => {
+        try {
+            await upsertBudget({ category, amount });
+             setToast({ message: 'บันทึกงบประมาณสำเร็จ', type: 'success' });
+        } catch (error: any) {
+             setToast({ message: error.message || 'เกิดข้อผิดพลาดในการตั้งงบประมาณ', type: 'error' });
+        }
     };
 
-    return (
-        <>
-            <Header 
-                onOpenReport={() => setIsReportModalOpen(true)} 
-                onOpenSettings={() => setIsSettingsModalOpen(true)}
-                onOpenChat={() => setIsChatModalOpen(true)}
-                user={user}
-                onSignOut={handleSignOut}
-            />
-            
-            <main className="container mx-auto p-4 md:p-6">
-                <SummaryCards income={income} expense={expense} />
-                
-                <BudgetStatusList 
-                    budgets={budgets} 
-                    transactions={dateFilteredTransactions} 
-                    title={`สถานะงบประมาณ (${dateFilterLabels[dateFilterKey]})`}
-                />
+    const handleSlipAnalyzed = (analyzedTransaction: Omit<Transaction, 'id' | 'createdAt'>) => {
+        // This opens the Add/Edit modal with pre-filled data from the slip
+        setTransactionToEdit({ ...analyzedTransaction, id: '', createdAt: new Date().toISOString() });
+        setAddEditModalOpen(true);
+    };
 
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center my-6 gap-4">
-                    <div className="flex-grow">
-                        <h2 className="text-xl font-bold text-gray-200">ประวัติรายการ</h2>
-                        <DateFilter currentFilter={dateFilterKey} onFilterChange={setDateFilterKey} />
-                    </div>
-                    <button
-                        onClick={() => setIsImportSlipModalOpen(true)}
-                        className="px-4 py-2 text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 self-end md:self-center"
+    const filteredTransactions = useMemo(() => {
+        const { thisWeek, thisMonth } = getDateRanges();
+        let dateFiltered = transactions;
+
+        if (dateFilter === 'thisMonth') {
+            dateFiltered = transactions.filter(t => new Date(t.createdAt) >= thisMonth.start && new Date(t.createdAt) <= thisMonth.end);
+        } else if (dateFilter === 'thisWeek') {
+            dateFiltered = transactions.filter(t => new Date(t.createdAt) >= thisWeek.start && new Date(t.createdAt) <= thisWeek.end);
+        }
+
+        if (typeFilter === 'all') {
+            return dateFiltered;
+        }
+        return dateFiltered.filter(t => t.type === typeFilter);
+    }, [transactions, typeFilter, dateFilter]);
+    
+    const allTimeFilteredTransactionsForReport = useMemo(() => {
+        if (typeFilter === 'all') {
+            return transactions;
+        }
+        return transactions.filter(t => t.type === typeFilter);
+    }, [transactions, typeFilter]);
+
+    if (!session) {
+        return <Auth />;
+    }
+
+    return (
+        <div className="bg-gray-900 text-gray-100 min-h-screen">
+            <Header
+                user={session.user}
+                onSignOut={() => supabase.auth.signOut()}
+                onOpenReport={() => setReportModalOpen(true)}
+                onOpenSettings={() => setSettingsModalOpen(true)}
+                onOpenChat={() => setChatModalOpen(true)}
+            />
+            <main className="container mx-auto p-4 md:p-6">
+                <SummaryCards transactions={filteredTransactions} />
+                <div className="flex flex-col md:flex-row justify-between items-center">
+                    <DateFilter currentFilter={dateFilter} onFilterChange={setDateFilter} />
+                    <button 
+                        onClick={() => setImportSlipModalOpen(true)}
+                        className="mb-4 md:mb-0 px-4 py-2 text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                     >
-                        นำเข้าสลิป
+                        นำเข้าด้วยสลิป
                     </button>
                 </div>
-
-                <FilterControls filter={filter} onFilterChange={setFilter} />
-
+                 <BudgetStatusList 
+                    budgets={budgets} 
+                    transactions={filteredTransactions} 
+                    title={`งบประมาณ (${dateFilter === 'thisMonth' ? 'เดือนนี้' : dateFilter === 'thisWeek' ? 'สัปดาห์นี้' : 'ทั้งหมด'})`}
+                />
+                <FilterControls filter={{ type: typeFilter }} onFilterChange={({ type }) => setTypeFilter(type)} />
                 {transactionsLoading ? (
-                    <p className="text-center py-10">กำลังโหลดข้อมูลธุรกรรม...</p>
+                    <p className="text-center">กำลังโหลดข้อมูล...</p>
                 ) : (
-                    <TransactionList 
-                        transactions={finalFilteredTransactions} 
+                    <TransactionList
+                        transactions={filteredTransactions}
                         onEdit={handleEditClick}
                         onDelete={handleDeleteClick}
                         onAddTransaction={handleAddClick}
@@ -227,84 +197,42 @@ const MainAppContent: React.FC<{ user: User }> = ({ user }) => {
 
             <FloatingActionButton onClick={handleAddClick} />
             
-            <AddEditTransactionModal 
+            <AddEditTransactionModal
                 isOpen={isAddEditModalOpen}
-                onClose={() => {
-                    setIsAddEditModalOpen(false);
-                    setTransactionToEdit(null);
-                }}
+                onClose={() => setAddEditModalOpen(false)}
                 onSave={handleSaveTransaction}
                 transactionToEdit={transactionToEdit}
                 categories={categories}
             />
-
-            <ReportModal 
+            <ReportModal
                 isOpen={isReportModalOpen}
-                onClose={() => setIsReportModalOpen(false)}
-                transactions={dateFilteredTransactions}
+                onClose={() => setReportModalOpen(false)}
+                transactions={allTimeFilteredTransactionsForReport}
             />
-
-            <ImportSlipModal
-                isOpen={isImportSlipModalOpen}
-                onClose={() => setIsImportSlipModalOpen(false)}
-                onSlipAnalyzed={handleSlipAnalyzed}
-                categories={categories}
-            />
-
             <CategorySettingsModal
                 isOpen={isSettingsModalOpen}
-                onClose={() => setIsSettingsModalOpen(false)}
+                onClose={() => setSettingsModalOpen(false)}
                 categories={categories}
                 budgets={budgets}
                 onAddCategory={handleAddCategory}
                 onDeleteCategory={handleDeleteCategory}
                 onUpsertBudget={handleUpsertBudget}
             />
-
             <ChatModal
                 isOpen={isChatModalOpen}
-                onClose={() => setIsChatModalOpen(false)}
+                onClose={() => setChatModalOpen(false)}
                 transactions={transactions}
             />
-
+            <ImportSlipModal 
+                isOpen={isImportSlipModalOpen}
+                onClose={() => setImportSlipModalOpen(false)}
+                onSlipAnalyzed={handleSlipAnalyzed}
+                categories={categories}
+            />
+            
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-        </>
-    );
-}
-
-function App() {
-    const [session, setSession] = useState<Session | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        // Fetch session on initial load
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setLoading(false);
-        });
-
-        // Listen for auth state changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-        });
-
-        // Cleanup subscription on unmount
-        return () => subscription.unsubscribe();
-    }, []);
-
-    if (loading) {
-        return (
-            <div className="bg-gray-900 min-h-screen flex items-center justify-center">
-                <p className="text-white">กำลังตรวจสอบการยืนยันตัวตน...</p>
-            </div>
-        );
-    }
-    
-    return (
-        <div className="bg-gray-900 min-h-screen text-gray-100 font-sans">
-            {!session ? <Auth /> : <MainAppContent user={session.user} />}
         </div>
     );
-}
+};
 
 export default App;

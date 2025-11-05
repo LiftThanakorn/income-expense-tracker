@@ -58,31 +58,27 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             return { pieData: [], lineData: [] };
         }
 
-        // FIX: Explicitly type the initial value of the reduce accumulator to Record<string, number>.
-        // This ensures TypeScript correctly infers `acc` as an object with string keys and number values,
-        // resolving the arithmetic operation error on `acc[t.category]`.
+        // FIX: Explicitly type the accumulator for the reduce function to resolve type inference issues.
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce((acc, t) => {
+            .reduce<Record<string, number>>((acc, t) => {
                 acc[t.category] = (acc[t.category] || 0) + t.amount;
                 return acc;
-            }, {} as Record<string, number>);
+            }, {});
 
         const pieData = Object.entries(expenseByCategory)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
-        // FIX: Explicitly type the initial value of the reduce accumulator.
-        // This correctly types `dataByDay`, which in turn ensures `Object.values` returns a correctly typed array.
-        // This resolves property access errors on `a.date` and `b.date` in the sort function.
-        const dataByDay = transactions.reduce((acc, t) => {
+        // FIX: Explicitly type the accumulator for the reduce function to resolve property access errors during sorting.
+        const dataByDay = transactions.reduce<Record<string, { date: string, income: number, expense: number }>>((acc, t) => {
             const day = new Date(t.createdAt).toISOString().split('T')[0];
             if (!acc[day]) {
                 acc[day] = { date: day, income: 0, expense: 0 };
             }
             acc[day][t.type] += t.amount;
             return acc;
-        }, {} as Record<string, { date: string, income: number, expense: number }>);
+        }, {});
         
         const lineData = Object.values(dataByDay)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
