@@ -1,9 +1,7 @@
-// FIX: Corrected the import for React and hooks to resolve multiple compilation errors.
-import React, { useState, useEffect, useMemo } from 'react';
-import { Transaction, TransactionType } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Transaction } from '../types';
 import { analyzeSpending } from '../services/geminiService';
 import { PieChart } from './PieChart';
-import { LineChart } from './LineChart';
 
 interface ReportModalProps {
     isOpen: boolean;
@@ -18,41 +16,53 @@ interface AnalysisResult {
     monthlyChartData: { income: number; expense: number };
 }
 
-const LoadingSpinner: React.FC = () => (
-    <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-);
+const SimpleBarChart: React.FC<{ data: { income: number, expense: number } }> = ({ data }) => {
+    const total = data.income + data.expense;
+    const incomePercent = total > 0 ? (data.income / total) * 100 : 0;
+    const expensePercent = total > 0 ? (data.expense / total) * 100 : 0;
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-1 text-sm">
+                <span className="text-green-400">รายรับ</span>
+                <span className="font-semibold">{data.income.toLocaleString('th-TH')} บาท</span>
+            </div>
+            <div className="flex justify-between items-center mb-2 text-sm">
+                <span className="text-red-400">รายจ่าย</span>
+                 <span className="font-semibold">{data.expense.toLocaleString('th-TH')} บาท</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-4 flex overflow-hidden">
+                <div 
+                    className="bg-green-500 h-4" 
+                    style={{ width: `${incomePercent}%` }}
+                    title={`รายรับ: ${data.income.toLocaleString('th-TH')}`}
+                ></div>
+                <div 
+                    className="bg-red-500 h-4" 
+                    style={{ width: `${expensePercent}%` }}
+                    title={`รายจ่าย: ${data.expense.toLocaleString('th-TH')}`}
+                ></div>
+            </div>
+        </div>
+    );
+}
 
 export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, transactions }) => {
-    const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [result, setResult] = useState<AnalysisResult | null>(null);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isRendered, setIsRendered] = useState(false);
-
-    useEffect(() => {
-        if (isOpen) {
-            setIsRendered(true);
-        }
-    }, [isOpen]);
-
-    const handleAnimationEnd = () => {
-        if (!isOpen) {
-            setIsRendered(false);
-        }
-    };
 
     useEffect(() => {
         if (isOpen && transactions.length > 0) {
             const getAnalysis = async () => {
                 setLoading(true);
                 setError(null);
-                setAnalysis(null);
+                setResult(null);
                 try {
-                    const result = await analyzeSpending(transactions);
-                    setAnalysis(result);
-                } catch (e) {
-                    setError('เกิดข้อผิดพลาดในการวิเคราะห์ข้อมูล กรุณาลองใหม่');
+                    const analysisResult = await analyzeSpending(transactions);
+                    setResult(analysisResult);
+                } catch (e: any) {
+                    setError('เกิดข้อผิดพลาดในการวิเคราะห์ข้อมูล: ' + e.message);
                     console.error(e);
                 } finally {
                     setLoading(false);
@@ -60,99 +70,55 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             };
             getAnalysis();
         } else if (isOpen) {
-            setLoading(false);
-            setError(null);
-            setAnalysis(null);
+             setResult({
+                summary: "ไม่มีข้อมูลธุรกรรมที่จะวิเคราะห์",
+                topExpenseCategories: [],
+                savingsSuggestions: ["เพิ่มรายการธุรกรรมเพื่อรับคำแนะนำ"],
+                monthlyChartData: { income: 0, expense: 0 }
+            });
         }
     }, [isOpen, transactions]);
 
-    const chartData = useMemo(() => {
-        if (!transactions || transactions.length === 0) {
-            return { pieData: [], lineData: [] };
-        }
+    if (!isOpen) return null;
 
-        // FIX: Type the initial value of the reduce function to avoid compilation errors with generic type arguments.
-        const expenseByCategory = transactions
-            .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce((acc, t) => {
-                acc[t.category] = (acc[t.category] || 0) + t.amount;
-                return acc;
-            }, {} as Record<string, number>);
-
-        const pieData = Object.entries(expenseByCategory)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
-
-        // FIX: Type the initial value of the reduce function to correctly type the accumulator and resolve property access errors.
-        const dataByDay = transactions.reduce((acc, t) => {
-            const day = new Date(t.createdAt).toISOString().split('T')[0];
-            if (!acc[day]) {
-                acc[day] = { date: day, income: 0, expense: 0 };
-            }
-            acc[day][t.type] += t.amount;
-            return acc;
-        }, {} as Record<string, { date: string, income: number, expense: number }>);
-        
-        const lineData = Object.values(dataByDay)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        return { pieData, lineData };
-    }, [transactions]);
-
-
-    if (!isRendered) return null;
+    const pieChartData = result?.topExpenseCategories.map(c => ({ name: c.category, value: c.amount })) || [];
 
     return (
-        <div 
-            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-in-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0'}`} 
-            onClick={onClose}
-            onTransitionEnd={handleAnimationEnd}
-        >
-            <div 
-                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[800px] p-6 flex flex-col modal transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
-                onClick={e => e.stopPropagation()}
-            >
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
+            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-200">รายงานสรุปผล</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>
+                    <h2 className="text-xl font-bold">รายงานสรุปการเงิน</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
                 </div>
+                {loading && <p className="text-center">กำลังวิเคราะห์ข้อมูลด้วย AI...</p>}
+                {error && <p className="text-center text-red-400">{error}</p>}
+                {result && (
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2 text-blue-400">ภาพรวม</h3>
+                            <p className="text-gray-300">{result.summary}</p>
+                        </div>
+                        
+                        <div>
+                             <h3 className="text-lg font-semibold mb-2 text-blue-400">รายรับ vs รายจ่าย</h3>
+                            <SimpleBarChart data={result.monthlyChartData} />
+                        </div>
+                        
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2 text-blue-400">หมวดหมู่รายจ่ายสูงสุด</h3>
+                             <PieChart data={pieChartData} />
+                        </div>
 
-                <div className="flex-grow overflow-y-auto pr-2 space-y-8">
-                    {transactions.length === 0 ? (
-                         <p className="text-center text-gray-400 mt-10">ไม่มีข้อมูลธุรกรรมในช่วงเวลานี้</p>
-                    ) : (
-                        <>
-                             <div>
-                                <h3 className="text-lg font-semibold mb-3 text-amber-400">แนวโน้มการเงิน</h3>
-                                <LineChart data={chartData.lineData} />
-                            </div>
-
-                            <div>
-                                <h3 className="text-lg font-semibold mb-3 text-fuchsia-400">สัดส่วนรายจ่าย</h3>
-                                <PieChart data={chartData.pieData} />
-                            </div>
-
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2 text-blue-400">AI วิเคราะห์ภาพรวม</h3>
-                                {loading && <LoadingSpinner />}
-                                {error && <p className="text-center text-red-500 mt-4">{error}</p>}
-                                {analysis && (
-                                    <div className="space-y-6">
-                                        <p className="bg-blue-900/50 p-4 rounded-lg text-gray-300">{analysis.summary}</p>
-                                        <div>
-                                            <h4 className="text-md font-semibold mb-2 text-green-400">คำแนะนำเพื่อการออม</h4>
-                                            <ul className="space-y-2">
-                                                {analysis.savingsSuggestions.map((item, index) => (
-                                                    <li key={index} className="p-3 bg-green-900/50 rounded-lg list-none text-gray-300">💡 {item}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-                </div>
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2 text-blue-400">💡 คำแนะนำเพื่อการออม</h3>
+                            <ul className="list-disc list-inside space-y-2 text-gray-300">
+                                {result.savingsSuggestions.map((suggestion, index) => (
+                                    <li key={index}>{suggestion}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
