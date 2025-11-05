@@ -58,29 +58,29 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             return { pieData: [], lineData: [] };
         }
 
-        // FIX: Explicitly type the accumulator for the reduce function to prevent type inference errors.
-        // This ensures that `acc` is correctly typed as Record<string, number> within the callback, fixing the arithmetic operation errors.
+        // FIX: Explicitly cast the initial value of the reduce accumulator to ensure TypeScript infers the correct type for `acc`.
+        // This resolves errors with untyped arguments and arithmetic operations.
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce<Record<string, number>>((acc, t) => {
+            .reduce((acc, t) => {
                 acc[t.category] = (acc[t.category] || 0) + t.amount;
                 return acc;
-            }, {});
+            }, {} as Record<string, number>);
 
         const pieData = Object.entries(expenseByCategory)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
-        // FIX: Explicitly type the accumulator for the reduce function to prevent type inference errors.
-        // This ensures that `dataByDay` has the correct type, allowing Object.values to infer the correct array type for `lineData`.
-        const dataByDay = transactions.reduce<Record<string, { date: string, income: number, expense: number }>>((acc, t) => {
+        // FIX: Explicitly cast the initial value of the reduce accumulator.
+        // This ensures `dataByDay` is correctly typed, allowing `Object.values` to infer the correct array type and fixing property access errors.
+        const dataByDay = transactions.reduce((acc, t) => {
             const day = new Date(t.createdAt).toISOString().split('T')[0];
             if (!acc[day]) {
                 acc[day] = { date: day, income: 0, expense: 0 };
             }
             acc[day][t.type] += t.amount;
             return acc;
-        }, {});
+        }, {} as Record<string, { date: string, income: number, expense: number }>);
         
         const lineData = Object.values(dataByDay)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
