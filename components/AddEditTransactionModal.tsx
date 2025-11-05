@@ -1,138 +1,136 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, TransactionType, Category } from '../types';
 
 interface AddEditTransactionModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (transaction: Omit<Transaction, 'id' | 'createdAt'> | Transaction) => void;
-    transactionToEdit: Transaction | null;
+    transactionToEdit?: Transaction | null;
     categories: Category[];
 }
 
-export const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = ({ isOpen, onClose, onSave, transactionToEdit, categories }) => {
+export const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = ({
+    isOpen,
+    onClose,
+    onSave,
+    transactionToEdit,
+    categories = [],
+}) => {
     const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
-    const [categoryId, setCategoryId] = useState('');
-    const [amount, setAmount] = useState('');
-    const [note, setNote] = useState('');
-    const [createdAt, setCreatedAt] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
+    const [category, setCategory] = useState<string>('');
+    const [amount, setAmount] = useState<string>('');
+    const [note, setNote] = useState<string>('');
+    const [isRendered, setIsRendered] = useState(false);
 
-    const filteredCategories = categories.filter(c => c.type === type);
+    // FIX: Define `currentCategories` based on the selected transaction type using `useMemo`.
+    // This variable was used in the JSX but was not defined, causing a compilation error.
+    const currentCategories = useMemo(() => 
+        categories.filter(c => c.type === type).map(c => c.name), 
+        [categories, type]
+    );
 
     useEffect(() => {
         if (isOpen) {
-            if (transactionToEdit) {
-                setType(transactionToEdit.type);
-                setCategoryId(categories.find(c => c.name === transactionToEdit.category)?.id || '');
-                setAmount(String(transactionToEdit.amount));
-                setNote(transactionToEdit.note || '');
-                setCreatedAt(new Date(transactionToEdit.createdAt).toISOString().split('T')[0]);
-            } else {
-                // Reset form for new transaction
-                setType(TransactionType.EXPENSE);
-                setCategoryId(categories.find(c => c.type === TransactionType.EXPENSE)?.id || '');
-                setAmount('');
-                setNote('');
-                setCreatedAt(new Date().toISOString().split('T')[0]);
-            }
+            setIsRendered(true);
         }
-    }, [isOpen, transactionToEdit, categories]);
+    }, [isOpen]);
+
+    const handleAnimationEnd = () => {
+        if (!isOpen) {
+            setIsRendered(false);
+        }
+    };
 
     useEffect(() => {
-        // When type changes, reset category to the first available one for that type
-        setCategoryId(filteredCategories[0]?.id || '');
-    }, [type, categories]);
+        if (transactionToEdit) {
+            setType(transactionToEdit.type);
+            setCategory(transactionToEdit.category);
+            setAmount(String(transactionToEdit.amount));
+            setNote(transactionToEdit.note);
+        } else {
+            // Reset form for new transaction
+            const defaultType = TransactionType.EXPENSE;
+            const defaultCategories = categories.filter(c => c.type === defaultType).map(c => c.name);
+            setType(defaultType);
+            setCategory(defaultCategories[0] || '');
+            setAmount('');
+            setNote('');
+        }
+    }, [transactionToEdit, isOpen, categories]);
 
+    useEffect(() => {
+        const newCategoryList = categories.filter(c => c.type === type).map(c => c.name);
+        if (!newCategoryList.includes(category)) {
+            setCategory(newCategoryList[0] || '');
+        }
+    }, [type, category, categories]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const categoryName = categories.find(c => c.id === categoryId)?.name;
-        if (!categoryName || !amount) {
-            alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        const numericAmount = parseFloat(amount);
+        if (!category || isNaN(numericAmount) || numericAmount <= 0) {
+            alert('กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง');
             return;
         }
 
-        const transactionData = {
+        const newTransaction = {
             type,
-            category: categoryName,
-            amount: parseFloat(amount),
+            category,
+            amount: numericAmount,
             note,
-            createdAt: new Date(createdAt).toISOString(),
         };
-
-        if (transactionToEdit && transactionToEdit.id) {
-            onSave({ ...transactionData, id: transactionToEdit.id });
+        
+        if (transactionToEdit) {
+            onSave({ ...newTransaction, id: transactionToEdit.id, createdAt: transactionToEdit.createdAt });
         } else {
-            onSave(transactionData);
+            onSave(newTransaction);
         }
         onClose();
     };
-
-    if (!isOpen) return null;
+    
+    if (!isRendered) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4">{transactionToEdit ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}</h2>
+        <div 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0 pointer-events-none'}`} 
+            onClick={onClose}
+            onTransitionEnd={handleAnimationEnd}
+        >
+            <div 
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4 transition-all duration-300 ease-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`} 
+                onClick={e => e.stopPropagation()}
+            >
+                <h2 className="text-2xl font-bold mb-6 text-gray-200">
+                    {transactionToEdit ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}
+                </h2>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-400 mb-2">ประเภท</label>
-                        <select
-                            value={type}
-                            onChange={(e) => setType(e.target.value as TransactionType)}
-                            className="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            <option value={TransactionType.EXPENSE}>รายจ่าย</option>
-                            <option value={TransactionType.INCOME}>รายรับ</option>
+                        <div className="flex rounded-md shadow-sm">
+                            <button type="button" onClick={() => setType(TransactionType.INCOME)} className={`px-4 py-2 w-1/2 rounded-l-md font-semibold focus:outline-none transition-colors ${type === TransactionType.INCOME ? 'bg-green-500 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>รายรับ</button>
+                            <button type="button" onClick={() => setType(TransactionType.EXPENSE)} className={`px-4 py-2 w-1/2 rounded-r-md font-semibold focus:outline-none transition-colors ${type === TransactionType.EXPENSE ? 'bg-red-500 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>รายจ่าย</button>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <label htmlFor="category" className="block text-sm font-medium text-gray-300 mb-1">หมวดหมู่</label>
+                        <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100">
+                            {currentCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
                     </div>
+
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-400 mb-2">หมวดหมู่</label>
-                        <select
-                            value={categoryId}
-                            onChange={(e) => setCategoryId(e.target.value)}
-                            className="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                        >
-                            {filteredCategories.map(cat => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                            ))}
-                        </select>
+                        <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-1">จำนวนเงิน (บาท)</label>
+                        <input type="number" id="amount" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100" />
                     </div>
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-400 mb-2">จำนวนเงิน</label>
-                        <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="0.00"
-                            required
-                            step="0.01"
-                        />
-                    </div>
-                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-400 mb-2">วันที่</label>
-                        <input
-                            type="date"
-                            value={createdAt}
-                            onChange={(e) => setCreatedAt(e.target.value)}
-                            className="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                        />
-                    </div>
+
                     <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-400 mb-2">บันทึก</label>
-                        <input
-                            type="text"
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            className="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="(ไม่บังคับ)"
-                        />
+                        <label htmlFor="note" className="block text-sm font-medium text-gray-300 mb-1">บันทึก (ไม่บังคับ)</label>
+                        <input type="text" id="note" value={note} onChange={e => setNote(e.target.value)} className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100" />
                     </div>
-                    <div className="flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 rounded bg-gray-600 hover:bg-gray-500">ยกเลิก</button>
-                        <button type="submit" className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700">{transactionToEdit ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มรายการ'}</button>
+
+                    <div className="flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-md font-semibold text-gray-300 bg-gray-600 hover:bg-gray-500">ยกเลิก</button>
+                        <button type="submit" className="px-4 py-2 rounded-md font-semibold text-white bg-blue-600 hover:bg-blue-700">บันทึก</button>
                     </div>
                 </form>
             </div>

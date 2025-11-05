@@ -6,7 +6,6 @@ import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
 import { TransactionList } from './components/TransactionList';
 import { AddEditTransactionModal } from './components/AddEditTransactionModal';
-import { FloatingActionButton } from './components/FloatingActionButton';
 import { ReportModal } from './components/ReportModal';
 import { CategorySettingsModal } from './components/CategorySettingsModal';
 import { ChatModal } from './components/ChatModal';
@@ -20,6 +19,7 @@ import { useBudgets } from './hooks/useBudgets';
 import { Transaction, TransactionType, Category, Budget } from './types';
 import { Toast, ToastProps } from './components/Toast';
 import { getDateRanges } from './utility/dateUtils';
+import { FloatingActionMenu } from './components/FloatingActionMenu';
 
 type DateFilterKey = 'thisMonth' | 'thisWeek' | 'allTime';
 
@@ -164,18 +164,11 @@ const App: React.FC = () => {
                 onSignOut={() => supabase.auth.signOut()}
                 onOpenReport={() => setReportModalOpen(true)}
                 onOpenSettings={() => setSettingsModalOpen(true)}
-                onOpenChat={() => setChatModalOpen(true)}
             />
             <main className="container mx-auto p-4 md:p-6">
                 <SummaryCards transactions={filteredTransactions} />
                 <div className="flex flex-col md:flex-row justify-between items-center">
                     <DateFilter currentFilter={dateFilter} onFilterChange={setDateFilter} />
-                    <button 
-                        onClick={() => setImportSlipModalOpen(true)}
-                        className="mb-4 md:mb-0 px-4 py-2 text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                    >
-                        นำเข้าด้วยสลิป
-                    </button>
                 </div>
                  <BudgetStatusList 
                     budgets={budgets} 
@@ -195,7 +188,11 @@ const App: React.FC = () => {
                 )}
             </main>
 
-            <FloatingActionButton onClick={handleAddClick} />
+            <FloatingActionMenu
+                onAddTransaction={handleAddClick}
+                onOpenChat={() => setChatModalOpen(true)}
+                onOpenImportSlip={() => setImportSlipModalOpen(true)}
+            />
             
             <AddEditTransactionModal
                 isOpen={isAddEditModalOpen}

@@ -1,142 +1,174 @@
-import React, { useState, useEffect } from 'react';
+
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { Category, TransactionType, Budget } from '../types';
-import { TrashIcon, PlusIcon } from './Icons';
+import { PlusIcon, TrashIcon } from './Icons';
 
 interface CategorySettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     categories: Category[];
     budgets: Budget[];
-    onAddCategory: (category: Omit<Category, 'id' | 'created_at'>) => void;
-    onDeleteCategory: (id: string) => void;
-    onUpsertBudget: (category: string, amount: number) => void;
+    // FIX: Use a union type with `|` instead of a comma for multiple keys in Omit.
+    onAddCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
+    onDeleteCategory: (id: string) => Promise<void>;
+    onUpsertBudget: (category: string, amount: number) => Promise<void>;
 }
 
-export const CategorySettingsModal: React.FC<CategorySettingsModalProps> = ({ isOpen, onClose, categories, budgets, onAddCategory, onDeleteCategory, onUpsertBudget }) => {
+const CategoryList: React.FC<{
+    title: string;
+    type: TransactionType;
+    categories: Category[];
+    budgets: { [key: string]: number };
+    // FIX: Use a union type with `|` instead of a comma for multiple keys in Omit.
+    onAddCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
+    onDeleteCategory: (id: string) => Promise<void>;
+    onBudgetChange: (category: string, amount: number) => void;
+}> = ({ title, type, categories, budgets, onAddCategory, onDeleteCategory, onBudgetChange }) => {
     const [newCategoryName, setNewCategoryName] = useState('');
-    const [newCategoryType, setNewCategoryType] = useState<TransactionType>(TransactionType.EXPENSE);
-    const [budgetAmounts, setBudgetAmounts] = useState<{ [key: string]: string }>({});
-    const [activeTab, setActiveTab] = useState<'categories' | 'budgets'>('categories');
-
-    const incomeCategories = categories.filter(c => c.type === TransactionType.INCOME);
-    const expenseCategories = categories.filter(c => c.type === TransactionType.EXPENSE);
+    const [localBudgets, setLocalBudgets] = useState(budgets);
 
     useEffect(() => {
-        if (isOpen) {
-            const initialBudgets = budgets.reduce((acc, budget) => {
-                acc[budget.category] = String(budget.amount);
-                return acc;
-            }, {} as { [key: string]: string });
-            setBudgetAmounts(initialBudgets);
-        }
-    }, [isOpen, budgets]);
+        setLocalBudgets(budgets);
+    }, [budgets]);
 
-    const handleAddCategory = (e: React.FormEvent) => {
+    const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newCategoryName.trim()) {
-            onAddCategory({ name: newCategoryName.trim(), type: newCategoryType });
+            await onAddCategory({ name: newCategoryName.trim(), type });
             setNewCategoryName('');
         }
     };
     
-    const handleBudgetChange = (categoryName: string, amountStr: string) => {
-        setBudgetAmounts(prev => ({ ...prev, [categoryName]: amountStr }));
+    const handleBudgetInputChange = (category: string, value: string) => {
+        const amount = Number(value);
+        setLocalBudgets(prev => ({...prev, [category]: amount }));
     };
-    
-    const handleBudgetBlur = (categoryName: string) => {
-        const amountStr = budgetAmounts[categoryName];
-        const amount = parseFloat(amountStr) || 0;
-        const existingBudget = budgets.find(b => b.category === categoryName)?.amount || 0;
-        
-        // Only call API if value has changed
-        if(amount !== existingBudget) {
-            onUpsertBudget(categoryName, amount);
+
+    const handleBudgetSave = (category: string) => {
+        const amount = localBudgets[category];
+        if (typeof amount === 'number') {
+            onBudgetChange(category, amount);
         }
     };
 
-    if (!isOpen) return null;
+    return (
+        <div>
+            <h3 className={`text-lg font-semibold mb-2 ${type === 'income' ? 'text-green-400' : 'text-red-400'}`}>{title}</h3>
+            <ul className="space-y-2 max-h-48 overflow-y-auto pr-2 mb-3">
+                {categories.map(cat => (
+                    <li key={cat.id} className="p-2 bg-gray-700 rounded-md">
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-200">{cat.name}</span>
+                            <button onClick={() => onDeleteCategory(cat.id)} className="p-1 text-gray-500 hover:text-red-400">
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                        {type === TransactionType.EXPENSE && (
+                             <div className="mt-2 flex items-center gap-2">
+                                <label htmlFor={`budget-${cat.id}`} className="text-sm text-gray-400">งบประมาณ:</label>
+                                <input
+                                    id={`budget-${cat.id}`}
+                                    type="number"
+                                    placeholder="0"
+                                    value={localBudgets[cat.name] || ''}
+                                    onChange={(e) => handleBudgetInputChange(cat.name, e.target.value)}
+                                    onBlur={() => handleBudgetSave(cat.name)}
+                                    className="w-full px-2 py-1 border border-gray-600 rounded-md shadow-sm bg-gray-600 text-gray-100 text-sm"
+                                />
+                             </div>
+                        )}
+                    </li>
+                ))}
+            </ul>
+            <form onSubmit={handleAdd} className="flex gap-2">
+                <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="เพิ่มหมวดหมู่ใหม่"
+                    className="flex-grow w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                />
+                <button type="submit" className="p-2 rounded-md font-semibold text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center">
+                    <PlusIcon className="w-5 h-5" />
+                </button>
+            </form>
+        </div>
+    );
+};
+
+export const CategorySettingsModal: React.FC<CategorySettingsModalProps> = ({
+    isOpen,
+    onClose,
+    categories,
+    budgets,
+    onAddCategory,
+    onDeleteCategory,
+    onUpsertBudget
+}) => {
+    const incomeCategories = useMemo(() => categories.filter(c => c.type === TransactionType.INCOME), [categories]);
+    const expenseCategories = useMemo(() => categories.filter(c => c.type === TransactionType.EXPENSE), [categories]);
+    const budgetMap = useMemo(() => budgets.reduce((acc, b) => {
+        acc[b.category] = b.amount;
+        return acc;
+    }, {} as { [key: string]: number }), [budgets]);
+
+    const [isRendered, setIsRendered] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsRendered(true);
+        }
+    }, [isOpen]);
+
+    const handleAnimationEnd = () => {
+        if (!isOpen) {
+            setIsRendered(false);
+        }
+    };
+
+    if (!isRendered) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">ตั้งค่า</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
+        <div 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0 pointer-events-none'}`} 
+            onClick={onClose}
+            onTransitionEnd={handleAnimationEnd}
+        >
+            <div 
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl h-auto max-h-[90vh] p-6 flex flex-col modal transition-all duration-300 ease-out ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-200">ตั้งค่าหมวดหมู่ & งบประมาณ</h2>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>
                 </div>
-
-                <div className="border-b border-gray-700 mb-4">
-                    <nav className="-mb-px flex space-x-4" aria-label="Tabs">
-                        <button onClick={() => setActiveTab('categories')} className={`${activeTab === 'categories' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-400'} whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm`}>
-                            หมวดหมู่
-                        </button>
-                        <button onClick={() => setActiveTab('budgets')} className={`${activeTab === 'budgets' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-400'} whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm`}>
-                            งบประมาณ
-                        </button>
-                    </nav>
+                
+                <div className="flex-grow overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <CategoryList
+                        title="หมวดหมู่รายรับ"
+                        type={TransactionType.INCOME}
+                        categories={incomeCategories}
+                        budgets={{}}
+                        onAddCategory={onAddCategory}
+                        onDeleteCategory={onDeleteCategory}
+                        onBudgetChange={() => {}}
+                    />
+                    <CategoryList
+                        title="หมวดหมู่รายจ่าย"
+                        type={TransactionType.EXPENSE}
+                        categories={expenseCategories}
+                        budgets={budgetMap}
+                        onAddCategory={onAddCategory}
+                        onDeleteCategory={onDeleteCategory}
+                        onBudgetChange={onUpsertBudget}
+                    />
                 </div>
-
-                <div className="overflow-y-auto flex-grow">
-                    {activeTab === 'categories' && (
-                        <div>
-                            <form onSubmit={handleAddCategory} className="flex gap-2 mb-4">
-                                <input type="text" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="ชื่อหมวดหมู่ใหม่" className="flex-grow p-2 bg-gray-700 rounded border border-gray-600"/>
-                                <select value={newCategoryType} onChange={e => setNewCategoryType(e.target.value as TransactionType)} className="p-2 bg-gray-700 rounded border border-gray-600">
-                                    <option value={TransactionType.EXPENSE}>รายจ่าย</option>
-                                    <option value={TransactionType.INCOME}>รายรับ</option>
-                                </select>
-                                <button type="submit" className="p-2 bg-blue-600 rounded"><PlusIcon className="w-5 h-5"/></button>
-                            </form>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <h3 className="font-semibold text-green-400 mb-2">รายรับ</h3>
-                                    <ul className="space-y-2">
-                                        {incomeCategories.map(cat => (
-                                            <li key={cat.id} className="flex justify-between items-center bg-gray-700 p-2 rounded">
-                                                <span>{cat.name}</span>
-                                                <button onClick={() => onDeleteCategory(cat.id)} className="text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-red-400 mb-2">รายจ่าย</h3>
-                                    <ul className="space-y-2">
-                                        {expenseCategories.map(cat => (
-                                            <li key={cat.id} className="flex justify-between items-center bg-gray-700 p-2 rounded">
-                                                <span>{cat.name}</span>
-                                                <button onClick={() => onDeleteCategory(cat.id)} className="text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4"/></button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    {activeTab === 'budgets' && (
-                         <div>
-                            <h3 className="font-semibold text-blue-400 mb-2">ตั้งงบประมาณรายจ่าย</h3>
-                            <p className="text-sm text-gray-500 mb-4">กำหนดงบประมาณสำหรับแต่ละหมวดหมู่รายจ่าย การเปลี่ยนแปลงจะถูกบันทึกอัตโนมัติ</p>
-                             <ul className="space-y-3">
-                                {expenseCategories.map(cat => (
-                                    <li key={cat.id} className="flex justify-between items-center gap-4">
-                                        <label htmlFor={`budget-${cat.id}`} className="flex-grow">{cat.name}</label>
-                                        <div className="relative">
-                                            <input
-                                                id={`budget-${cat.id}`}
-                                                type="number"
-                                                value={budgetAmounts[cat.name] || ''}
-                                                onChange={e => handleBudgetChange(cat.name, e.target.value)}
-                                                onBlur={() => handleBudgetBlur(cat.name)}
-                                                placeholder="0"
-                                                className="w-32 p-2 bg-gray-700 rounded border border-gray-600 text-right pr-8"
-                                            />
-                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">บาท</span>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+                
+                <div className="mt-6 text-right">
+                    <button onClick={onClose} className="px-4 py-2 rounded-md font-semibold text-white bg-gray-500 hover:bg-gray-600">
+                        เสร็จสิ้น
+                    </button>
                 </div>
             </div>
         </div>
