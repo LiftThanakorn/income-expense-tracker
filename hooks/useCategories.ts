@@ -3,18 +3,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Category } from '../types';
 
-export function useCategories() {
+export function useCategories(userId: string) {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchCategories = useCallback(async () => {
+        if (!userId) return;
         setLoading(true);
         setError(null);
         try {
             const { data, error } = await supabase
                 .from('categories')
                 .select('*')
+                .eq('user_id', userId)
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
@@ -25,17 +27,19 @@ export function useCategories() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [userId]);
 
     useEffect(() => {
         fetchCategories();
     }, [fetchCategories]);
 
     const addCategory = async (category: Omit<Category, 'id' | 'created_at'>) => {
+        if (!userId) throw new Error("User not logged in.");
         try {
+            const categoryWithUser = { ...category, user_id: userId };
             const { data, error } = await supabase
                 .from('categories')
-                .insert([category])
+                .insert([categoryWithUser])
                 .select();
             
             if (error) throw error;
@@ -52,6 +56,7 @@ export function useCategories() {
     };
 
     const deleteCategory = async (id: string) => {
+        if (!userId) throw new Error("User not logged in.");
         if (!id || typeof id !== 'string') {
             const error = new Error('ID ที่ระบุสำหรับลบหมวดหมู่ไม่ถูกต้อง');
             console.error('[useCategories] Delete failed:', error);
@@ -68,6 +73,7 @@ export function useCategories() {
                 .from('budgets')
                 .select('amount')
                 .eq('category', categoryToDelete.name)
+                .eq('user_id', userId)
                 .limit(1);
 
             if (budgetError) {
@@ -83,6 +89,7 @@ export function useCategories() {
                 .from('categories')
                 .delete()
                 .eq('id', id)
+                .eq('user_id', userId)
                 .select();
     
             if (error) {

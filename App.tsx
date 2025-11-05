@@ -1,5 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from './services/supabaseClient';
+import { Auth } from './components/Auth';
 import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
 import { TransactionList } from './components/TransactionList';
@@ -27,7 +30,7 @@ const dateFilterLabels: Record<DateFilterKey, string> = {
     allTime: 'ทั้งหมด'
 };
 
-function App() {
+const MainAppContent: React.FC<{ user: User }> = ({ user }) => {
     // Hooks
     const { 
         transactions, 
@@ -35,9 +38,9 @@ function App() {
         updateTransaction, 
         deleteTransaction, 
         loading: transactionsLoading,
-    } = useTransactions();
-    const { categories, addCategory, deleteCategory } = useCategories();
-    const { budgets, upsertBudget } = useBudgets();
+    } = useTransactions(user.id);
+    const { categories, addCategory, deleteCategory } = useCategories(user.id);
+    const { budgets, upsertBudget } = useBudgets(user.id);
 
     // Modal States
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
@@ -100,35 +103,13 @@ function App() {
     };
 
     const handleDeleteClick = async (id: string) => {
-        console.log(`[App.tsx] User clicked delete for transaction ID: ${id}. Bypassing confirmation for debugging.`);
-    
         try {
             await deleteTransaction(id);
             showToast('ลบรายการสำเร็จ', 'success');
-            console.log(`[App.tsx] Successfully processed deletion for ID: ${id}`);
-    
         } catch (error) {
             console.error("[App.tsx] Caught an error during delete operation:", error);
-    
-            // Create a more detailed error message for the user.
-            let errorMessage = 'เกิดข้อผิดพลาดที่ไม่สามารถระบุได้';
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            } else if (typeof error === 'object' && error !== null && 'message' in error) {
-                errorMessage = String((error as { message: string }).message);
-            } else {
-                try {
-                    errorMessage = JSON.stringify(error);
-                } catch {
-                    // Fallback if stringify fails
-                    errorMessage = String(error);
-                }
-            }
-            
-            // The most important part for debugging with the user: a clear, unavoidable alert.
+            const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่รู้จัก';
             alert(`ไม่สามารถลบรายการได้:\n\n${errorMessage}`);
-            
-            // Also show a toast for better UX, but the alert is for debugging.
             showToast('เกิดข้อผิดพลาดในการลบ', 'error');
         }
     };
@@ -139,10 +120,7 @@ function App() {
                 await updateTransaction(transaction as Transaction);
                 showToast('อัปเดตรายการสำเร็จ', 'success');
             } else {
-                const newTransaction = { ...transaction };
-                delete (newTransaction as any).id;
-                delete (newTransaction as any).createdAt;
-                await addTransaction(newTransaction);
+                await addTransaction(transaction as Omit<Transaction, 'id' | 'createdAt'>);
                 showToast('เพิ่มรายการสำเร็จ', 'success');
             }
             setIsAddEditModalOpen(false);
@@ -178,14 +156,7 @@ function App() {
             showToast('ลบหมวดหมู่สำเร็จ', 'success');
         } catch (error) {
             console.error("[App.tsx] Caught an error during category delete operation:", error);
-    
-            let errorMessage = 'เกิดข้อผิดพลาดที่ไม่สามารถระบุได้';
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            } else if (typeof error === 'object' && error !== null && 'message' in error) {
-                errorMessage = String((error as { message: string }).message);
-            }
-            
+            const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่รู้จัก';
             alert(`ไม่สามารถลบหมวดหมู่ได้:\n\n${errorMessage}`);
             showToast('เกิดข้อผิดพลาดในการลบหมวดหมู่', 'error');
         }
@@ -199,13 +170,19 @@ function App() {
              showToast('เกิดข้อผิดพลาดในการบันทึกงบประมาณ', 'error');
         }
     };
+    
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+    };
 
     return (
-        <div className="bg-gray-900 min-h-screen text-gray-100 font-sans">
+        <>
             <Header 
                 onOpenReport={() => setIsReportModalOpen(true)} 
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
                 onOpenChat={() => setIsChatModalOpen(true)}
+                user={user}
+                onSignOut={handleSignOut}
             />
             
             <main className="container mx-auto p-4 md:p-6">
@@ -287,6 +264,41 @@ function App() {
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        </>
+    );
+}
+
+function App() {
+    const [session, setSession] = useState<Session | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Fetch session on initial load
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setLoading(false);
+        });
+
+        // Listen for auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        // Cleanup subscription on unmount
+        return () => subscription.unsubscribe();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="bg-gray-900 min-h-screen flex items-center justify-center">
+                <p className="text-white">กำลังตรวจสอบการยืนยันตัวตน...</p>
+            </div>
+        );
+    }
+    
+    return (
+        <div className="bg-gray-900 min-h-screen text-gray-100 font-sans">
+            {!session ? <Auth /> : <MainAppContent user={session.user} />}
         </div>
     );
 }

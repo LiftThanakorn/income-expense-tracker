@@ -1,4 +1,3 @@
-
 // FIX: Corrected the import for React and hooks to resolve multiple compilation errors.
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, TransactionType } from '../types';
@@ -59,25 +58,29 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             return { pieData: [], lineData: [] };
         }
 
+        // FIX: Explicitly type the accumulator for the reduce function to prevent type inference errors.
+        // This ensures that `acc` is correctly typed as Record<string, number> within the callback, fixing the arithmetic operation errors.
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce((acc, t) => {
+            .reduce<Record<string, number>>((acc, t) => {
                 acc[t.category] = (acc[t.category] || 0) + t.amount;
                 return acc;
-            }, {} as Record<string, number>);
+            }, {});
 
         const pieData = Object.entries(expenseByCategory)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
-        const dataByDay = transactions.reduce((acc, t) => {
+        // FIX: Explicitly type the accumulator for the reduce function to prevent type inference errors.
+        // This ensures that `dataByDay` has the correct type, allowing Object.values to infer the correct array type for `lineData`.
+        const dataByDay = transactions.reduce<Record<string, { date: string, income: number, expense: number }>>((acc, t) => {
             const day = new Date(t.createdAt).toISOString().split('T')[0];
             if (!acc[day]) {
                 acc[day] = { date: day, income: 0, expense: 0 };
             }
             acc[day][t.type] += t.amount;
             return acc;
-        }, {} as Record<string, { date: string, income: number, expense: number }>);
+        }, {});
         
         const lineData = Object.values(dataByDay)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
