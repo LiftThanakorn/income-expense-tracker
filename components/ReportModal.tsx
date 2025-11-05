@@ -59,7 +59,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
         }
 
         // FIX: Explicitly type the initial value of the reduce accumulator to ensure TypeScript
-        // infers `acc` as a record of strings to numbers. This resolves arithmetic errors on line 72.
+        // infers `acc` as a record of strings to numbers. This resolves arithmetic errors.
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
             .reduce((acc, t) => {
@@ -73,7 +73,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
 
         // FIX: Explicitly type the initial value of the reduce accumulator.
         // This ensures `dataByDay` is correctly typed, allowing `Object.values` to return a correctly typed array
-        // and fixing property access errors on `a.date` and `b.date` on line 86.
+        // and fixing property access errors on `a.date` and `b.date`.
         const dataByDay = transactions.reduce((acc, t) => {
             const day = new Date(t.createdAt).toISOString().split('T')[0];
             if (!acc[day]) {

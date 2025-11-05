@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './services/supabaseClient';
@@ -39,7 +40,13 @@ const MainAppContent: React.FC<{ user: User }> = ({ user }) => {
         deleteTransaction, 
         loading: transactionsLoading,
     } = useTransactions(user.id);
-    const { categories, addCategory, deleteCategory } = useCategories(user.id);
+    const { 
+        categories, 
+        addCategory, 
+        deleteCategory, 
+        addDefaultCategories,
+        loading: categoriesLoading 
+    } = useCategories(user.id);
     const { budgets, upsertBudget } = useBudgets(user.id);
 
     // Modal States
@@ -62,6 +69,17 @@ const MainAppContent: React.FC<{ user: User }> = ({ user }) => {
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
     };
+    
+    // Effect to add default categories for new users
+    useEffect(() => {
+        if (!categoriesLoading && categories.length === 0) {
+            addDefaultCategories().catch(err => {
+                console.error("Failed to add default categories:", err);
+                showToast('เกิดข้อผิดพลาดในการตั้งค่าหมวดหมู่เริ่มต้น', 'error');
+            });
+        }
+    }, [categoriesLoading, categories.length, addDefaultCategories]);
+
 
     // Filtered Data
     const dateFilteredTransactions = useMemo(() => {

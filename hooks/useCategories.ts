@@ -1,7 +1,27 @@
 
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Category } from '../types';
+import { Category, TransactionType } from '../types';
+
+const defaultCategories = [
+  // Income
+  { name: 'เงินเดือน', type: TransactionType.INCOME },
+  { name: 'รายได้เสริม', type: TransactionType.INCOME },
+  { name: 'เงินคืน', type: TransactionType.INCOME },
+  { name: 'ของขวัญ/โบนัส', type: TransactionType.INCOME },
+  { name: 'อื่นๆ', type: TransactionType.INCOME },
+  // Expense
+  { name: 'อาหาร', type: TransactionType.EXPENSE },
+  { name: 'เดินทาง', type: TransactionType.EXPENSE },
+  { name: 'ที่อยู่อาศัย', type: TransactionType.EXPENSE },
+  { name: 'บันเทิง', type: TransactionType.EXPENSE },
+  { name: 'ชอปปิง', type: TransactionType.EXPENSE },
+  { name: 'สุขภาพ', type: TransactionType.EXPENSE },
+  { name: 'การศึกษา', type: TransactionType.EXPENSE },
+  { name: 'บิล/ค่าบริการ', type: TransactionType.EXPENSE },
+  { name: 'อื่นๆ', type: TransactionType.EXPENSE },
+];
 
 export function useCategories(userId: string) {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -50,6 +70,28 @@ export function useCategories(userId: string) {
             return data;
         } catch (e: any) {
             setError(e.message || 'Failed to add category');
+            console.error(e);
+            throw e;
+        }
+    };
+
+    const addDefaultCategories = async () => {
+        if (!userId) throw new Error("User not logged in.");
+        try {
+            const categoriesWithUser = defaultCategories.map(cat => ({ ...cat, user_id: userId }));
+            const { data, error } = await supabase
+                .from('categories')
+                .insert(categoriesWithUser)
+                .select();
+            
+            if (error) throw error;
+            
+            if (data) {
+                setCategories(prev => [...(data as Category[]), ...prev]);
+            }
+            return data;
+        } catch (e: any) {
+            setError(e.message || 'Failed to add default categories');
             console.error(e);
             throw e;
         }
@@ -116,6 +158,7 @@ export function useCategories(userId: string) {
         loading,
         error,
         addCategory,
-        deleteCategory
+        deleteCategory,
+        addDefaultCategories
     };
 }
