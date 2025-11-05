@@ -20,10 +20,26 @@ export const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = (
     const [category, setCategory] = useState<string>('');
     const [amount, setAmount] = useState<string>('');
     const [note, setNote] = useState<string>('');
+    const [isRendered, setIsRendered] = useState(false);
 
-    const currentCategories = useMemo(() => {
-        return categories.filter(c => c.type === type).map(c => c.name);
-    }, [type, categories]);
+    // FIX: Define `currentCategories` based on the selected transaction type using `useMemo`.
+    // This variable was used in the JSX but was not defined, causing a compilation error.
+    const currentCategories = useMemo(() => 
+        categories.filter(c => c.type === type).map(c => c.name), 
+        [categories, type]
+    );
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsRendered(true);
+        }
+    }, [isOpen]);
+
+    const handleAnimationEnd = () => {
+        if (!isOpen) {
+            setIsRendered(false);
+        }
+    };
 
     useEffect(() => {
         if (transactionToEdit) {
@@ -72,11 +88,18 @@ export const AddEditTransactionModal: React.FC<AddEditTransactionModalProps> = (
         onClose();
     };
     
-    if (!isOpen) return null;
+    if (!isRendered) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
-            <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4" onClick={e => e.stopPropagation()}>
+        <div 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-in-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0'}`} 
+            onClick={onClose}
+            onTransitionEnd={handleAnimationEnd}
+        >
+            <div 
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 m-4 transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`} 
+                onClick={e => e.stopPropagation()}
+            >
                 <h2 className="text-2xl font-bold mb-6 text-gray-200">
                     {transactionToEdit ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}
                 </h2>

@@ -10,13 +10,16 @@ interface TransactionListProps {
     onAddTransaction: () => void;
 }
 
-const TransactionItem: React.FC<{ transaction: Transaction; onEdit: (t: Transaction) => void; onDelete: (id: string) => void; }> = ({ transaction, onEdit, onDelete }) => {
+const TransactionItem: React.FC<{ transaction: Transaction; onEdit: (t: Transaction) => void; onDelete: (id: string) => void; index: number; }> = ({ transaction, onEdit, onDelete, index }) => {
     const isIncome = transaction.type === TransactionType.INCOME;
     const amountColor = isIncome ? 'text-green-400' : 'text-red-400';
     const sign = isIncome ? '+' : '-';
     
     return (
-        <li className="p-4 bg-gray-800 rounded-xl shadow-md flex items-center justify-between space-x-4">
+        <li 
+            className="p-4 bg-gray-800 rounded-xl shadow-md flex items-center justify-between space-x-4 animate-list-item"
+            style={{ animationDelay: `${index * 75}ms` }}
+        >
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-100 truncate">{transaction.category}</p>
                 <p className="text-sm text-gray-400 truncate">{transaction.note || ' '}</p>
@@ -51,8 +54,8 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
         <div>
             <h2 className="text-xl font-bold text-gray-200 mb-4">รายการล่าสุด</h2>
             <ul className="space-y-4">
-                {transactions.map(transaction => (
-                    <TransactionItem key={transaction.id} transaction={transaction} onEdit={onEdit} onDelete={onDelete} />
+                {transactions.map((transaction, index) => (
+                    <TransactionItem key={transaction.id} transaction={transaction} onEdit={onEdit} onDelete={onDelete} index={index} />
                 ))}
             </ul>
         </div>

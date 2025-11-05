@@ -14,6 +14,19 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, transacti
     const [loading, setLoading] = useState(false);
     const [chat, setChat] = useState<Chat | null>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
+    const [isRendered, setIsRendered] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsRendered(true);
+        }
+    }, [isOpen]);
+
+    const handleAnimationEnd = () => {
+        if (!isOpen) {
+            setIsRendered(false);
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -70,11 +83,18 @@ export const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose, transacti
         }
     };
 
-    if (!isOpen) return null;
+    if (!isRendered) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
-            <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg h-[70vh] max-h-[600px] p-6 flex flex-col" onClick={e => e.stopPropagation()}>
+        <div 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-in-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0'}`}
+            onClick={onClose}
+            onTransitionEnd={handleAnimationEnd}
+        >
+            <div 
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg h-[70vh] max-h-[600px] p-6 flex flex-col transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold text-gray-200">AI Assistant (มณี)</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>

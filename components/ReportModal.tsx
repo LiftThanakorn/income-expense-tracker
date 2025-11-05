@@ -28,6 +28,19 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
     const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isRendered, setIsRendered] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsRendered(true);
+        }
+    }, [isOpen]);
+
+    const handleAnimationEnd = () => {
+        if (!isOpen) {
+            setIsRendered(false);
+        }
+    };
 
     useEffect(() => {
         if (isOpen && transactions.length > 0) {
@@ -58,27 +71,27 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             return { pieData: [], lineData: [] };
         }
 
-        // FIX: Explicitly type the accumulator for the reduce function to resolve type inference issues.
+        // FIX: Type the initial value of the reduce function to avoid compilation errors with generic type arguments.
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce<Record<string, number>>((acc, t) => {
+            .reduce((acc, t) => {
                 acc[t.category] = (acc[t.category] || 0) + t.amount;
                 return acc;
-            }, {});
+            }, {} as Record<string, number>);
 
         const pieData = Object.entries(expenseByCategory)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
-        // FIX: Explicitly type the accumulator for the reduce function to resolve property access errors during sorting.
-        const dataByDay = transactions.reduce<Record<string, { date: string, income: number, expense: number }>>((acc, t) => {
+        // FIX: Type the initial value of the reduce function to correctly type the accumulator and resolve property access errors.
+        const dataByDay = transactions.reduce((acc, t) => {
             const day = new Date(t.createdAt).toISOString().split('T')[0];
             if (!acc[day]) {
                 acc[day] = { date: day, income: 0, expense: 0 };
             }
             acc[day][t.type] += t.amount;
             return acc;
-        }, {});
+        }, {} as Record<string, { date: string, income: number, expense: number }>);
         
         const lineData = Object.values(dataByDay)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -87,11 +100,18 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
     }, [transactions]);
 
 
-    if (!isOpen) return null;
+    if (!isRendered) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
-            <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[800px] p-6 flex flex-col modal" onClick={e => e.stopPropagation()}>
+        <div 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-in-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0'}`} 
+            onClick={onClose}
+            onTransitionEnd={handleAnimationEnd}
+        >
+            <div 
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[800px] p-6 flex flex-col modal transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold text-gray-200">รายงานสรุปผล</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>

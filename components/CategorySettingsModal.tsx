@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Category, TransactionType, Budget } from '../types';
 import { PlusIcon, TrashIcon } from './Icons';
@@ -8,6 +9,7 @@ interface CategorySettingsModalProps {
     onClose: () => void;
     categories: Category[];
     budgets: Budget[];
+    // FIX: Use a union type with `|` instead of a comma for multiple keys in Omit.
     onAddCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
     onDeleteCategory: (id: string) => Promise<void>;
     onUpsertBudget: (category: string, amount: number) => Promise<void>;
@@ -18,6 +20,7 @@ const CategoryList: React.FC<{
     type: TransactionType;
     categories: Category[];
     budgets: { [key: string]: number };
+    // FIX: Use a union type with `|` instead of a comma for multiple keys in Omit.
     onAddCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
     onDeleteCategory: (id: string) => Promise<void>;
     onBudgetChange: (category: string, amount: number) => void;
@@ -110,12 +113,32 @@ export const CategorySettingsModal: React.FC<CategorySettingsModalProps> = ({
         return acc;
     }, {} as { [key: string]: number }), [budgets]);
 
+    const [isRendered, setIsRendered] = useState(false);
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (isOpen) {
+            setIsRendered(true);
+        }
+    }, [isOpen]);
+
+    const handleAnimationEnd = () => {
+        if (!isOpen) {
+            setIsRendered(false);
+        }
+    };
+
+    if (!isRendered) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center" onClick={onClose}>
-            <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl h-auto max-h-[90vh] p-6 flex flex-col modal" onClick={e => e.stopPropagation()}>
+        <div 
+            className={`fixed inset-0 bg-black z-50 flex justify-center items-center transition-opacity duration-300 ease-in-out ${isOpen ? 'bg-opacity-60' : 'bg-opacity-0'}`} 
+            onClick={onClose}
+            onTransitionEnd={handleAnimationEnd}
+        >
+            <div 
+                className={`bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl h-auto max-h-[90vh] p-6 flex flex-col modal transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-200">ตั้งค่าหมวดหมู่ & งบประมาณ</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-400 p-2 rounded-full -mr-2">&times;</button>
