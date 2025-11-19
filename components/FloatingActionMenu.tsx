@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { PlusIcon, SparklesIcon, ArrowUpTrayIcon, PencilIcon } from './Icons';
 
@@ -53,8 +54,8 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onAddTra
     };
 
     return (
-        <div ref={menuRef} className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-4">
-                <div className={`flex flex-col items-end gap-4 transition-all duration-300 ease-out ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div ref={menuRef} className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-4 pointer-events-none">
+                <div className={`flex flex-col items-end gap-4 transition-all duration-300 ease-out ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
                      <ActionButton onClick={createHandler(onOpenImportSlip)} label="นำเข้าสลิป">
                          <ArrowUpTrayIcon className="w-7 h-7" />
                     </ActionButton>
@@ -67,7 +68,7 @@ export const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onAddTra
                 </div>
              <button
                 onClick={toggleMenu}
-                className="w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500 transition-transform duration-300 ease-out"
+                className="w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500 transition-transform duration-300 ease-out pointer-events-auto"
                 style={{ transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}
                 aria-label={isOpen ? 'Close menu' : 'Open menu'}
             >

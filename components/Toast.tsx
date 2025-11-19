@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 export interface ToastProps {
@@ -20,7 +21,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
         return () => clearTimeout(timer);
     }, [message, type, onClose]);
 
-    const baseClasses = 'fixed top-5 right-5 z-50 p-4 rounded-md shadow-lg text-white transition-all duration-300';
+    const baseClasses = 'fixed top-5 right-5 z-50 p-4 rounded-md shadow-lg text-white transition-all duration-300 pointer-events-none';
     const typeClasses = {
         success: 'bg-green-500',
         error: 'bg-red-500',
