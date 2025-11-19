@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './services/supabaseClient';
@@ -13,10 +14,13 @@ import { ImportSlipModal } from './components/ImportSlipModal';
 import { FilterControls } from './components/FilterControls';
 import { DateFilter } from './components/DateFilter';
 import { BudgetStatusList } from './components/BudgetStatusList';
+import { GoalList } from './components/GoalList';
+import { AddEditGoalModal } from './components/AddEditGoalModal';
 import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
 import { useBudgets } from './hooks/useBudgets';
-import { Transaction, TransactionType, Category, Budget } from './types';
+import { useGoals } from './hooks/useGoals';
+import { Transaction, TransactionType, Category, Budget, Goal } from './types';
 import { Toast, ToastProps } from './components/Toast';
 import { getDateRanges } from './utility/dateUtils';
 import { FloatingActionMenu } from './components/FloatingActionMenu';
@@ -33,6 +37,10 @@ const App: React.FC = () => {
     const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
     const [isChatModalOpen, setChatModalOpen] = useState(false);
     const [isImportSlipModalOpen, setImportSlipModalOpen] = useState(false);
+    
+    // Goals Modal State
+    const [isGoalModalOpen, setGoalModalOpen] = useState(false);
+    const [goalToEdit, setGoalToEdit] = useState<Goal | null>(null);
 
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
     const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
@@ -45,6 +53,7 @@ const App: React.FC = () => {
     const { transactions, addTransaction, updateTransaction, deleteTransaction, loading: transactionsLoading } = useTransactions(user?.id ?? '');
     const { categories, addCategory, deleteCategory, loading: categoriesLoading } = useCategories(user?.id ?? '');
     const { budgets, upsertBudget, loading: budgetsLoading } = useBudgets(user?.id ?? '');
+    const { goals, addGoal, updateGoal, deleteGoal, loading: goalsLoading } = useGoals(user?.id ?? '');
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -124,6 +133,52 @@ const App: React.FC = () => {
         }
     };
 
+    // Goal Handlers
+    const handleAddGoalClick = () => {
+        setGoalToEdit(null);
+        setGoalModalOpen(true);
+    };
+
+    const handleEditGoalClick = (goal: Goal) => {
+        setGoalToEdit(goal);
+        setGoalModalOpen(true);
+    };
+
+    const handleDeleteGoalClick = async (id: string) => {
+        if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบเป้าหมายนี้?')) {
+            try {
+                await deleteGoal(id);
+                setToast({ message: 'ลบเป้าหมายสำเร็จ', type: 'success' });
+            } catch (error: any) {
+                setToast({ message: error.message || 'เกิดข้อผิดพลาดในการลบ', type: 'error' });
+            }
+        }
+    };
+
+    const handleSaveGoal = async (goal: Omit<Goal, 'id' | 'created_at'> | Goal) => {
+        try {
+            if ('id' in goal) {
+                await updateGoal(goal);
+                setToast({ message: 'อัปเดตเป้าหมายสำเร็จ', type: 'success' });
+            } else {
+                await addGoal(goal);
+                setToast({ message: 'สร้างเป้าหมายสำเร็จ', type: 'success' });
+            }
+        } catch (error: any) {
+            setToast({ message: error.message || 'เกิดข้อผิดพลาดในการบันทึกเป้าหมาย', type: 'error' });
+        }
+    };
+
+    const handleQuickAddGoal = async (goal: Goal, amount: number) => {
+        try {
+            await updateGoal({ ...goal, current_amount: goal.current_amount + amount });
+            setToast({ message: 'อัปเดตยอดสำเร็จ', type: 'success' });
+        } catch (error: any) {
+            setToast({ message: error.message || 'เกิดข้อผิดพลาด', type: 'error' });
+        }
+    };
+
+
     const handleSlipAnalyzed = (analyzedTransaction: Omit<Transaction, 'id' | 'createdAt'>) => {
         // This opens the Add/Edit modal with pre-filled data from the slip
         setTransactionToEdit({ ...analyzedTransaction, id: '', createdAt: new Date().toISOString() });
@@ -165,17 +220,29 @@ const App: React.FC = () => {
                 onOpenReport={() => setReportModalOpen(true)}
                 onOpenSettings={() => setSettingsModalOpen(true)}
             />
-            <main className="container mx-auto p-4 md:p-6">
+            <main className="container mx-auto p-4 md:p-6 pb-24">
                 <SummaryCards transactions={filteredTransactions} />
+                
                 <div className="flex flex-col md:flex-row justify-between items-center">
                     <DateFilter currentFilter={dateFilter} onFilterChange={setDateFilter} />
                 </div>
+
                  <BudgetStatusList 
                     budgets={budgets} 
                     transactions={filteredTransactions} 
                     title={`งบประมาณ (${dateFilter === 'thisMonth' ? 'เดือนนี้' : dateFilter === 'thisWeek' ? 'สัปดาห์นี้' : 'ทั้งหมด'})`}
                 />
+                
+                <GoalList 
+                    goals={goals}
+                    onEdit={handleEditGoalClick}
+                    onDelete={handleDeleteGoalClick}
+                    onAddGoal={handleAddGoalClick}
+                    onQuickAdd={handleQuickAddGoal}
+                />
+
                 <FilterControls filter={{ type: typeFilter }} onFilterChange={({ type }) => setTypeFilter(type)} />
+                
                 {transactionsLoading ? (
                     <p className="text-center">กำลังโหลดข้อมูล...</p>
                 ) : (
@@ -225,6 +292,13 @@ const App: React.FC = () => {
                 onClose={() => setImportSlipModalOpen(false)}
                 onSlipAnalyzed={handleSlipAnalyzed}
                 categories={categories}
+            />
+            
+            <AddEditGoalModal
+                isOpen={isGoalModalOpen}
+                onClose={() => setGoalModalOpen(false)}
+                onSave={handleSaveGoal}
+                goalToEdit={goalToEdit}
             />
             
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

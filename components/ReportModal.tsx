@@ -71,12 +71,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             return { pieData: [], lineData: [] };
         }
 
-        // FIX: Explicitly type the accumulator in the `reduce` function. Without this,
-        // TypeScript infers `acc` as `{}`, which leads to errors on property access and arithmetic operations.
+        // Fix: Use generic type for reduce to ensure accumulator type is correct and avoid arithmetic errors with undefined
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce((acc: Record<string, number>, t) => {
-                acc[t.category] = (acc[t.category] || 0) + t.amount;
+            .reduce<Record<string, number>>((acc, t) => {
+                const currentAmount = acc[t.category] || 0;
+                acc[t.category] = currentAmount + t.amount;
                 return acc;
             }, {});
 
@@ -84,10 +84,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
-        // FIX: Explicitly type the accumulator in the `reduce` function to resolve type inference issues.
-        // This ensures `dataByDay` has a known structure, allowing `Object.values` to return a correctly typed array,
-        // which in turn fixes the "property 'date' does not exist" error in the subsequent `sort` function.
-        const dataByDay = transactions.reduce((acc: Record<string, { date: string, income: number, expense: number }>, t) => {
+        // Fix: Use generic type for reduce to ensure dataByDay structure is known, resolving "property 'date' does not exist" errors
+        const dataByDay = transactions.reduce<Record<string, { date: string, income: number, expense: number }>>((acc, t) => {
             const day = new Date(t.createdAt).toISOString().split('T')[0];
             if (!acc[day]) {
                 acc[day] = { date: day, income: 0, expense: 0 };

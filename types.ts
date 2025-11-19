@@ -4,6 +4,11 @@ export enum TransactionType {
     EXPENSE = 'expense',
 }
 
+export enum GoalType {
+    SAVING = 'saving',
+    DEBT = 'debt',
+}
+
 export interface Transaction {
     id: string;
     type: TransactionType;
@@ -24,5 +29,15 @@ export interface Budget {
     id: string;
     category: string;
     amount: number;
+    created_at: string;
+}
+
+export interface Goal {
+    id: string;
+    name: string;
+    type: GoalType;
+    target_amount: number;
+    current_amount: number;
+    deadline?: string;
     created_at: string;
 }
