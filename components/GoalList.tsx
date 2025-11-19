@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Goal, GoalType } from '../types';
 import { TrophyIcon, CreditCardIcon, PencilIcon, TrashIcon, PlusIcon } from './Icons';
@@ -24,13 +23,26 @@ const GoalItem: React.FC<{ goal: Goal; onEdit: (g: Goal) => void; onDelete: (id:
 
     const handleQuickAdd = (e: React.MouseEvent) => {
         e.stopPropagation();
+        
+        if (isCompleted) return;
+
         // Prompt for quick add amount
-        const amountStr = prompt(`เพิ่มยอด${isSaving ? 'การออม' : 'การชำระหนี้'}สำหรับ "${goal.name}":`, "1000");
+        const amountStr = prompt(`เพิ่มยอด${isSaving ? 'การออม' : 'การชำระหนี้'}สำหรับ "${goal.name}"\n(ขาดอีก ${remaining.toLocaleString()} บาท):`, "1000");
+        
         if (amountStr) {
             const amount = parseFloat(amountStr);
-            if (!isNaN(amount) && amount > 0) {
-                onQuickAdd(goal, amount);
+            
+            if (isNaN(amount) || amount <= 0) {
+                 alert('กรุณาระบุจำนวนเงินที่ถูกต้อง');
+                 return;
             }
+
+            if (amount > remaining) {
+                alert(`⚠️ ไม่สามารถเติมเงินเกินเป้าหมายได้!\nคุณสามารถเติมได้สูงสุด ${remaining.toLocaleString()} บาท`);
+                return;
+            }
+
+            onQuickAdd(goal, amount);
         }
     };
 
@@ -39,7 +51,7 @@ const GoalItem: React.FC<{ goal: Goal; onEdit: (g: Goal) => void; onDelete: (id:
              {/* Background Accent */}
             <div className={`absolute top-0 right-0 w-16 h-16 opacity-10 rounded-bl-full ${isSaving ? 'bg-green-500' : 'bg-orange-500'} pointer-events-none`}></div>
 
-            <div className="flex justify-between items-start mb-2">
+            <div className="flex justify-between items-start mb-2 relative z-10">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg bg-gray-700 ${iconColor}`}>
                         {bgIcon}
@@ -53,17 +65,26 @@ const GoalItem: React.FC<{ goal: Goal; onEdit: (g: Goal) => void; onDelete: (id:
                         )}
                     </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onEdit(goal)} className="p-1 text-gray-400 hover:text-blue-400 rounded hover:bg-gray-700">
+                {/* Modified opacity logic: Always visible on touch devices/hover on desktop can be handled, but for safety making them always interactive */}
+                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onEdit(goal); }} 
+                        className="p-1 text-gray-400 hover:text-blue-400 rounded hover:bg-gray-700"
+                    >
                         <PencilIcon className="w-4 h-4" />
                     </button>
-                    <button onClick={() => onDelete(goal.id)} className="p-1 text-gray-400 hover:text-red-400 rounded hover:bg-gray-700">
+                    <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onDelete(goal.id); }} 
+                        className="p-1 text-gray-400 hover:text-red-400 rounded hover:bg-gray-700"
+                    >
                         <TrashIcon className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-2 relative z-10">
                 <div className="flex justify-between text-sm">
                     <span className="text-gray-400">{isSaving ? 'เก็บได้แล้ว' : 'ชำระแล้ว'}</span>
                     <span className="font-medium text-gray-200">{goal.current_amount.toLocaleString('th-TH')} / {goal.target_amount.toLocaleString('th-TH')}</span>
@@ -85,6 +106,7 @@ const GoalItem: React.FC<{ goal: Goal; onEdit: (g: Goal) => void; onDelete: (id:
                     </p>
                     {!isCompleted && (
                         <button 
+                            type="button"
                             onClick={handleQuickAdd}
                             className={`text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80 text-white ${isSaving ? 'bg-green-600' : 'bg-orange-600'}`}
                         >

@@ -83,7 +83,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
 
         const pieData = Object.entries(expenseByCategory)
             .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
+            .sort((a, b) => Number(b.value) - Number(a.value));
 
         interface DailyStats {
             date: string;

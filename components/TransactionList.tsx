@@ -17,7 +17,7 @@ const TransactionItem: React.FC<{ transaction: Transaction; onEdit: (t: Transact
     
     return (
         <li 
-            className="p-4 bg-gray-800 rounded-xl shadow-md flex items-center justify-between space-x-4 animate-list-item"
+            className="relative p-4 bg-gray-800 rounded-xl shadow-md flex items-center justify-between space-x-4 animate-list-item z-0 hover:bg-gray-750 transition-colors"
             style={{ animationDelay: `${index * 75}ms` }}
         >
             <div className="flex-1 min-w-0">
@@ -32,11 +32,21 @@ const TransactionItem: React.FC<{ transaction: Transaction; onEdit: (t: Transact
                     {new Date(transaction.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
             </div>
-            <div className="flex-shrink-0 flex items-center gap-2">
-                <button onClick={() => onEdit(transaction)} className="p-2 text-gray-400 hover:text-blue-500 rounded-full hover:bg-gray-700">
+            <div className="flex-shrink-0 flex items-center gap-2 relative z-10">
+                <button 
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onEdit(transaction); }} 
+                    className="p-2 text-gray-400 hover:text-blue-500 rounded-full hover:bg-gray-700 transition-colors"
+                    title="แก้ไข"
+                >
                     <PencilIcon className="w-5 h-5" />
                 </button>
-                <button onClick={() => onDelete(transaction.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-700">
+                <button 
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDelete(transaction.id); }} 
+                    className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-700 transition-colors"
+                    title="ลบ"
+                >
                     <TrashIcon className="w-5 h-5" />
                 </button>
             </div>
@@ -53,7 +63,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
     return (
         <div>
             <h2 className="text-xl font-bold text-gray-200 mb-4">รายการล่าสุด</h2>
-            <ul className="space-y-4">
+            <ul className="space-y-4 pb-4">
                 {transactions.map((transaction, index) => (
                     <TransactionItem key={transaction.id} transaction={transaction} onEdit={onEdit} onDelete={onDelete} index={index} />
                 ))}

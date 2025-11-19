@@ -145,8 +145,27 @@ const App: React.FC = () => {
     };
 
     const handleDeleteGoalClick = async (id: string) => {
-        if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบเป้าหมายนี้?')) {
+        const goalToDelete = goals.find(g => g.id === id);
+        if (!goalToDelete) return;
+
+        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบเป้าหมาย "${goalToDelete.name}"?`)) {
             try {
+                // Check if there is money in the goal that needs to be refunded
+                if (goalToDelete.current_amount > 0) {
+                    const shouldRefund = window.confirm(
+                        `เป้าหมายนี้มียอดเงินสะสมอยู่ ${goalToDelete.current_amount.toLocaleString()} บาท\n\nคุณต้องการ "คืนเงิน" ยอดนี้กลับเข้าสู่กระเป๋า (บันทึกเป็นรายรับ) เพื่อให้ยอดคงเหลือถูกต้องหรือไม่?`
+                    );
+
+                    if (shouldRefund) {
+                         await addTransaction({
+                            type: TransactionType.INCOME,
+                            category: 'อื่นๆ', // Fallback category
+                            amount: goalToDelete.current_amount,
+                            note: `คืนเงินจากการลบเป้าหมาย: ${goalToDelete.name}`,
+                        });
+                    }
+                }
+
                 await deleteGoal(id);
                 setToast({ message: 'ลบเป้าหมายสำเร็จ', type: 'success' });
             } catch (error: any) {
@@ -157,10 +176,66 @@ const App: React.FC = () => {
 
     const handleSaveGoal = async (goal: Omit<Goal, 'id' | 'created_at'> | Goal) => {
         try {
+            const getCategoryName = (goalType: GoalType) => {
+                if (goalType === GoalType.SAVING) {
+                    const c = categories.find(c => c.name === 'เงินออม' && c.type === TransactionType.EXPENSE);
+                    return c ? c.name : 'อื่นๆ';
+                } else {
+                    const c = categories.find(c => (c.name === 'ชำระหนี้' || c.name === 'บิล/ค่าบริการ') && c.type === TransactionType.EXPENSE);
+                    return c ? c.name : 'อื่นๆ';
+                }
+            };
+
             if ('id' in goal) {
+                // It's an Update
+                const originalGoal = goals.find(g => g.id === goal.id);
+                if (originalGoal) {
+                    const diff = goal.current_amount - originalGoal.current_amount;
+                    
+                    if (diff > 0) {
+                        const confirmExpense = window.confirm(
+                            `คุณได้เพิ่มยอดเงินเป้าหมายขึ้น ${diff.toLocaleString()} บาท\n\nต้องการบันทึกเป็น "รายจ่าย" เพื่อตัดเงินออกจากยอดคงเหลือตามความเป็นจริงหรือไม่?`
+                        );
+                        if (confirmExpense) {
+                             await addTransaction({
+                                type: TransactionType.EXPENSE,
+                                category: getCategoryName(goal.type),
+                                amount: diff,
+                                note: `ปรับปรุงเป้าหมาย (เพิ่ม): ${goal.name}`,
+                             });
+                        }
+                    } else if (diff < 0) {
+                         const refundAmount = Math.abs(diff);
+                         const confirmRefund = window.confirm(
+                            `คุณได้ลดยอดเงินเป้าหมายลง ${refundAmount.toLocaleString()} บาท\n\nต้องการ "คืนเงิน" ส่วนต่างนี้กลับเข้าสู่ยอดคงเหลือ (บันทึกเป็นรายรับ) หรือไม่?`
+                        );
+                        if (confirmRefund) {
+                            await addTransaction({
+                                type: TransactionType.INCOME,
+                                category: 'อื่นๆ',
+                                amount: refundAmount,
+                                note: `ปรับปรุงเป้าหมาย (ลด): ${goal.name}`,
+                             });
+                        }
+                    }
+                }
                 await updateGoal(goal);
                 setToast({ message: 'อัปเดตเป้าหมายสำเร็จ', type: 'success' });
             } else {
+                // New Goal
+                if (goal.current_amount > 0) {
+                     const confirmExpense = window.confirm(
+                        `คุณตั้งยอดเริ่มต้นไว้ ${goal.current_amount.toLocaleString()} บาท\n\nต้องการบันทึกเป็น "รายจ่าย" เพื่อตัดเงินออกจากยอดคงเหลือทันทีหรือไม่?`
+                    );
+                    if (confirmExpense) {
+                         await addTransaction({
+                            type: TransactionType.EXPENSE,
+                            category: getCategoryName(goal.type),
+                            amount: goal.current_amount,
+                            note: `เปิดเป้าหมายใหม่: ${goal.name}`,
+                         });
+                    }
+                }
                 await addGoal(goal);
                 setToast({ message: 'สร้างเป้าหมายสำเร็จ', type: 'success' });
             }
@@ -171,6 +246,12 @@ const App: React.FC = () => {
 
     const handleQuickAddGoal = async (goal: Goal, amount: number) => {
         try {
+            // Check for overfill logic (double check, though UI also handles it)
+            if (goal.current_amount + amount > goal.target_amount) {
+                setToast({ message: 'ไม่สามารถเติมเงินเกินเป้าหมายได้', type: 'error' });
+                return;
+            }
+
             // 1. Update the goal amount
             await updateGoal({ ...goal, current_amount: goal.current_amount + amount });
 
