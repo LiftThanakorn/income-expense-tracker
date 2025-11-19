@@ -17,7 +17,7 @@ const TransactionItem: React.FC<{ transaction: Transaction; onEdit: (t: Transact
     
     return (
         <li 
-            className="relative p-4 bg-gray-800 rounded-xl shadow-md flex items-center justify-between space-x-4 animate-list-item z-0 hover:bg-gray-750 transition-colors"
+            className="relative p-4 bg-gray-800 rounded-xl shadow-md flex items-center justify-between space-x-4 animate-list-item hover:bg-gray-700 transition-colors"
             style={{ animationDelay: `${index * 75}ms` }}
         >
             <div className="flex-1 min-w-0">
@@ -36,7 +36,7 @@ const TransactionItem: React.FC<{ transaction: Transaction; onEdit: (t: Transact
                 <button 
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onEdit(transaction); }} 
-                    className="p-2 text-gray-400 hover:text-blue-500 rounded-full hover:bg-gray-700 transition-colors"
+                    className="p-2 text-gray-400 hover:text-blue-500 rounded-full hover:bg-gray-600 transition-colors"
                     title="แก้ไข"
                 >
                     <PencilIcon className="w-5 h-5" />
@@ -44,7 +44,7 @@ const TransactionItem: React.FC<{ transaction: Transaction; onEdit: (t: Transact
                 <button 
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onDelete(transaction.id); }} 
-                    className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-700 transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-600 transition-colors"
                     title="ลบ"
                 >
                     <TrashIcon className="w-5 h-5" />
