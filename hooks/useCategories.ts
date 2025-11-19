@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { Category, TransactionType } from '../types';
@@ -18,6 +19,8 @@ const defaultCategories = [
   { name: 'สุขภาพ', type: TransactionType.EXPENSE },
   { name: 'การศึกษา', type: TransactionType.EXPENSE },
   { name: 'บิล/ค่าบริการ', type: TransactionType.EXPENSE },
+  { name: 'เงินออม', type: TransactionType.EXPENSE },
+  { name: 'ชำระหนี้', type: TransactionType.EXPENSE },
   { name: 'อื่นๆ', type: TransactionType.EXPENSE },
 ];
 

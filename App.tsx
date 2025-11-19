@@ -20,7 +20,7 @@ import { useTransactions } from './hooks/useTransactions';
 import { useCategories } from './hooks/useCategories';
 import { useBudgets } from './hooks/useBudgets';
 import { useGoals } from './hooks/useGoals';
-import { Transaction, TransactionType, Category, Budget, Goal } from './types';
+import { Transaction, TransactionType, Category, Budget, Goal, GoalType } from './types';
 import { Toast, ToastProps } from './components/Toast';
 import { getDateRanges } from './utility/dateUtils';
 import { FloatingActionMenu } from './components/FloatingActionMenu';
@@ -171,8 +171,41 @@ const App: React.FC = () => {
 
     const handleQuickAddGoal = async (goal: Goal, amount: number) => {
         try {
+            // 1. Update the goal amount
             await updateGoal({ ...goal, current_amount: goal.current_amount + amount });
-            setToast({ message: 'อัปเดตยอดสำเร็จ', type: 'success' });
+
+            // 2. Ask the user if they want to link this to a transaction
+            const confirmTransaction = window.confirm(
+                `คุณต้องการบันทึกยอด ${amount.toLocaleString()} บาท เป็นรายการรายจ่ายด้วยหรือไม่?\n(จะช่วยตัดยอดเงินคงเหลือให้ตรงกับความเป็นจริง)`
+            );
+
+            if (confirmTransaction) {
+                // Determine the category based on goal type
+                let categoryName = 'อื่นๆ';
+                
+                if (goal.type === GoalType.SAVING) {
+                    // Try to find 'เงินออม' or 'Investment'
+                    const savingCat = categories.find(c => c.name === 'เงินออม' && c.type === TransactionType.EXPENSE);
+                    categoryName = savingCat ? savingCat.name : 'อื่นๆ';
+                } else if (goal.type === GoalType.DEBT) {
+                     // Try to find 'ชำระหนี้' or 'บิล/ค่าบริการ'
+                    const debtCat = categories.find(c => (c.name === 'ชำระหนี้' || c.name === 'บิล/ค่าบริการ') && c.type === TransactionType.EXPENSE);
+                    categoryName = debtCat ? debtCat.name : 'อื่นๆ';
+                }
+
+                // Create the expense transaction
+                await addTransaction({
+                    type: TransactionType.EXPENSE,
+                    category: categoryName,
+                    amount: amount,
+                    note: `เติมเป้าหมาย: ${goal.name}`,
+                });
+                
+                setToast({ message: 'อัปเดตเป้าหมายและบันทึกรายจ่ายเรียบร้อย', type: 'success' });
+            } else {
+                setToast({ message: 'อัปเดตยอดเป้าหมายสำเร็จ', type: 'success' });
+            }
+
         } catch (error: any) {
             setToast({ message: error.message || 'เกิดข้อผิดพลาด', type: 'error' });
         }

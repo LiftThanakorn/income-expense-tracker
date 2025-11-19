@@ -71,35 +71,52 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, trans
             return { pieData: [], lineData: [] };
         }
 
-        // Fix: Use generic type for reduce to ensure accumulator type is correct and avoid arithmetic errors with undefined
+        // Fix: Removed generic type argument from reduce to avoid TS errors with inferred types.
+        // Explicitly typed the accumulator and the initial value.
         const expenseByCategory = transactions
             .filter(t => t.type === TransactionType.EXPENSE)
-            .reduce<Record<string, number>>((acc, t) => {
+            .reduce((acc: Record<string, number>, t) => {
                 const currentAmount = acc[t.category] || 0;
                 acc[t.category] = currentAmount + t.amount;
                 return acc;
-            }, {});
+            }, {} as Record<string, number>);
 
         const pieData = Object.entries(expenseByCategory)
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value);
 
-        // Fix: Use generic type for reduce to ensure dataByDay structure is known, resolving "property 'date' does not exist" errors
-        const dataByDay = transactions.reduce<Record<string, { date: string, income: number, expense: number }>>((acc, t) => {
-            const day = new Date(t.createdAt).toISOString().split('T')[0];
+        interface DailyStats {
+            date: string;
+            income: number;
+            expense: number;
+        }
+
+        // Fix: Removed generic type argument from reduce. 
+        // Explicitly typed the accumulator and initial value.
+        // Added explicit type for sort comparison to fix 'unknown' property access error.
+        const dataByDay = transactions.reduce((acc: Record<string, DailyStats>, t) => {
+            const date = new Date(t.createdAt);
+            // Basic validation to prevent invalid date errors
+            if (isNaN(date.getTime())) return acc; 
+            
+            const day = date.toISOString().split('T')[0];
             if (!acc[day]) {
                 acc[day] = { date: day, income: 0, expense: 0 };
             }
+            
+            // Ensure amount is treated as number
+            const amount = Number(t.amount);
+            
             if (t.type === TransactionType.INCOME) {
-                acc[day].income += t.amount;
+                acc[day].income += amount;
             } else {
-                acc[day].expense += t.amount;
+                acc[day].expense += amount;
             }
             return acc;
-        }, {});
+        }, {} as Record<string, DailyStats>);
         
         const lineData = Object.values(dataByDay)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            .sort((a: DailyStats, b: DailyStats) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         return { pieData, lineData };
     }, [transactions]);
